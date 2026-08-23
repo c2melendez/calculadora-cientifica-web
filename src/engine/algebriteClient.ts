@@ -59,4 +59,32 @@ export function solveEquation(equationAlgebrite: string, variable: string): stri
   }
 }
 
+/** Integral indefinida — best-effort, spec v10 §7 (Algebrite no cubre todo lo que SymPy). */
+export function indefiniteIntegral(expressionAlgebrite: string, variable: string): string {
+  try {
+    const result = Algebrite.run(`integral(${expressionAlgebrite},${variable})`);
+    if (typeof result !== "string" || /stop|Stop|integral\(/.test(result)) {
+      throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, "Algebrite no pudo resolver esta integral.");
+    }
+    return result;
+  } catch (err) {
+    if ((err as AppError).code) throw err;
+    throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, `No se pudo integrar: ${String(err)}`);
+  }
+}
+
+/** Límite simbólico — best-effort; no se asume que Algebrite siempre lo resuelva (ver README, riesgos). */
+export function symbolicLimit(expressionAlgebrite: string, variable: string, point: string): string {
+  try {
+    const result = Algebrite.run(`limit(${expressionAlgebrite},${variable},${point})`);
+    if (typeof result !== "string" || /stop|Stop|limit\(/.test(result)) {
+      throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, "Algebrite no pudo resolver este límite simbólicamente.");
+    }
+    return result;
+  } catch (err) {
+    if ((err as AppError).code) throw err;
+    throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, `Fallo al calcular límite simbólico: ${String(err)}`);
+  }
+}
+
 export { ErrorCode };
