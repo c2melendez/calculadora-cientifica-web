@@ -12,6 +12,7 @@ interface MathKeyboardProps {
   onEnter: () => void;
   angleMode: "RAD" | "GRAD";
   onToggleAngleMode: () => void;
+  showAngleToggle?: boolean;
 }
 
 const PPAL_KEYS: Array<{ label: string; latex: string }> = [
@@ -47,6 +48,7 @@ export function MathKeyboard({
   onEnter,
   angleMode,
   onToggleAngleMode,
+  showAngleToggle = true,
 }: MathKeyboardProps) {
   const [tab, setTab] = useState<Tab>("ppal");
 
@@ -64,12 +66,14 @@ export function MathKeyboard({
             </button>
           ))}
         </div>
-        <button
-          onClick={onToggleAngleMode}
-          className="rounded bg-panel px-2 py-1 text-xs font-semibold text-accent"
-        >
-          {angleMode}
-        </button>
+        {showAngleToggle && (
+          <button
+            onClick={onToggleAngleMode}
+            className="rounded bg-panel px-2 py-1 text-xs font-semibold text-accent"
+          >
+            {angleMode}
+          </button>
+        )}
       </div>
 
       {tab === "ppal" && (
