@@ -1,6 +1,14 @@
 // Único punto de contacto con Algebrite en todo el proyecto (regla de capa
 // dura, spec v10 §3). Ningún componente de /modes o /components debe hacer
 // `import Algebrite from "algebrite"` directamente.
+//
+// NOTA: "algebrite" se declara como módulo sin tipos (src/types/algebrite.d.ts,
+// forma shorthand) porque el paquete no trae sus propios tipos y un intento
+// anterior de tipar `run()` a mano no fue reconocido por el compilador real
+// en GitHub Actions. Esto significa `Algebrite.run(...)` devuelve `any` —
+// por eso CADA llamada de abajo anota explícitamente `: string` en la
+// variable que recibe el resultado, para que ese `any` no se cuele en
+// callbacks downstream (ej. `.map()`) sin que noImplicitAny lo detecte.
 
 import Algebrite from "algebrite";
 import { ErrorCode, type AppError } from "../types";
@@ -13,10 +21,8 @@ function toAppError(code: ErrorCode, message: string): AppError {
 export function evaluate(expressionLatex: string): string {
   try {
     // Algebrite trabaja con su propia sintaxis de entrada; la conversión
-    // LaTeX -> sintaxis Algebrite vive en stepEngine/parsing (Módulo 2B,
-    // pendiente). Por ahora se asume que el llamador ya entrega una cadena
-    // compatible (ver NaturalInput.getAlgebriteString()).
-    const result = Algebrite.run(expressionLatex);
+    // LaTeX -> sintaxis Algebrite vive en engine/parsing (Módulo 2).
+    const result: string = Algebrite.run(expressionLatex);
     if (typeof result !== "string" || result.length === 0) {
       throw toAppError(ErrorCode.PARSE_ERROR, "Algebrite no devolvió resultado.");
     }
@@ -33,7 +39,7 @@ export function evaluate(expressionLatex: string): string {
 /** Deriva una expresión respecto a una variable, orden 1-3 (spec v10 §7). */
 export function derivative(expressionAlgebrite: string, variable: string, order: 1 | 2 | 3 = 1): string {
   try {
-    let expr = expressionAlgebrite;
+    let expr: string = expressionAlgebrite;
     for (let i = 0; i < order; i++) {
       expr = Algebrite.run(`d(${expr},${variable})`);
     }
@@ -46,13 +52,16 @@ export function derivative(expressionAlgebrite: string, variable: string, order:
 /** Resuelve una ecuación de una variable. */
 export function solveEquation(equationAlgebrite: string, variable: string): string[] {
   try {
-    const result = Algebrite.run(`roots(${equationAlgebrite},${variable})`);
+    const result: string = Algebrite.run(`roots(${equationAlgebrite},${variable})`);
     if (/stop|Stop/.test(result)) {
       throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, `No se pudo resolver: ${result}`);
     }
     // Algebrite devuelve un vector de raíces separadas por coma cuando hay
     // más de una; se normaliza a array de strings.
-    return result.replace(/^\[|\]$/g, "").split(",").map((s) => s.trim());
+    return result
+      .replace(/^\[|\]$/g, "")
+      .split(",")
+      .map((s: string) => s.trim());
   } catch (err) {
     if ((err as AppError).code) throw err;
     throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, `Fallo al resolver ecuación: ${String(err)}`);
@@ -62,7 +71,7 @@ export function solveEquation(equationAlgebrite: string, variable: string): stri
 /** Integral indefinida — best-effort, spec v10 §7 (Algebrite no cubre todo lo que SymPy). */
 export function indefiniteIntegral(expressionAlgebrite: string, variable: string): string {
   try {
-    const result = Algebrite.run(`integral(${expressionAlgebrite},${variable})`);
+    const result: string = Algebrite.run(`integral(${expressionAlgebrite},${variable})`);
     if (typeof result !== "string" || /stop|Stop|integral\(/.test(result)) {
       throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, "Algebrite no pudo resolver esta integral.");
     }
@@ -76,7 +85,7 @@ export function indefiniteIntegral(expressionAlgebrite: string, variable: string
 /** Límite simbólico — best-effort; no se asume que Algebrite siempre lo resuelva (ver README, riesgos). */
 export function symbolicLimit(expressionAlgebrite: string, variable: string, point: string): string {
   try {
-    const result = Algebrite.run(`limit(${expressionAlgebrite},${variable},${point})`);
+    const result: string = Algebrite.run(`limit(${expressionAlgebrite},${variable},${point})`);
     if (typeof result !== "string" || /stop|Stop|limit\(/.test(result)) {
       throw toAppError(ErrorCode.UNSUPPORTED_OPERATION, "Algebrite no pudo resolver este límite simbólicamente.");
     }
