@@ -2,14 +2,22 @@
 // dura, spec v10 §3). Ningún componente de /modes o /components debe hacer
 // `import Algebrite from "algebrite"` directamente.
 //
-// NOTA: "algebrite" se declara como módulo sin tipos (src/types/algebrite.d.ts,
-// forma shorthand) porque el paquete no trae sus propios tipos y un intento
-// anterior de tipar `run()` a mano no fue reconocido por el compilador real
-// en GitHub Actions. Esto significa `Algebrite.run(...)` devuelve `any` —
-// por eso CADA llamada de abajo anota explícitamente `: string` en la
-// variable que recibe el resultado, para que ese `any` no se cuele en
-// callbacks downstream (ej. `.map()`) sin que noImplicitAny lo detecte.
-
+// NOTA: "algebrite" no publica tipos de TypeScript. Se probaron DOS formas
+// de declaración ambiental (`declare module "algebrite" { ... }` con firma
+// completa, y luego la forma shorthand `declare module "algebrite";`) y
+// NINGUNA de las dos fue honrada por el compilador real en GitHub Actions
+// — seguía reportando TS7016 en la línea del import, pese a que el archivo
+// .d.ts estaba presente y confirmado en el repo. No se pudo determinar la
+// causa exacta sin acceso directo al entorno de CI para depurar la
+// resolución de módulos. Se abandona ese mecanismo y se usa `@ts-ignore`
+// directamente sobre el import: es la técnica estándar para paquetes sin
+// tipos y no depende de que TypeScript descubra ninguna declaración
+// ambiental, así que es inmune al problema anterior. Efecto: `Algebrite`
+// queda tipado `any` — por eso CADA llamada de abajo anota explícitamente
+// `: string` en la variable que recibe el resultado, para que ese `any` no
+// se cuele en callbacks downstream (ej. `.map()`) sin que noImplicitAny lo
+// detecte.
+// @ts-ignore -- 'algebrite' no tiene declaración de tipos, ver nota arriba
 import Algebrite from "algebrite";
 import { ErrorCode, type AppError } from "../types";
 
