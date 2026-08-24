@@ -9,7 +9,16 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
-      "math-field": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
+      // Extiende las props estándar con los atributos propios de MathLive
+      // que no son HTML estándar y por lo tanto no están en HTMLAttributes
+      // (placeholder tampoco está en HTMLAttributes<HTMLElement> genérico
+      // porque normalmente es exclusivo de <input>/<textarea> — se agrega
+      // aquí a mano). Bug detectado contra la build real de GitHub Actions:
+      // la versión anterior de este tipo rechazaba ambos atributos.
+      "math-field": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        placeholder?: string;
+        "virtual-keyboard-mode"?: string;
+      };
     }
   }
 }
@@ -47,9 +56,10 @@ export function NaturalInput({ value, onChange, placeholder }: NaturalInputProps
     <math-field
       ref={ref as never}
       className="w-full rounded-lg bg-panel px-4 py-3 text-2xl text-slate-100 outline-none ring-1 ring-slate-700 focus:ring-accent"
-      // "static-keyboard" en false: el teclado propio de la app (MathKeyboard)
-      // reemplaza al teclado virtual por defecto de MathLive — spec v10 §5.
-      // @ts-expect-error -- atributo propio de mathlive, no tipado por React
+      // "virtual-keyboard-mode" en off: el teclado propio de la app
+      // (MathKeyboard) reemplaza al teclado virtual por defecto de MathLive
+      // — spec v10 §5. Ya no hace falta @ts-expect-error aquí: el tipo de
+      // arriba declara explícitamente este atributo.
       virtual-keyboard-mode="off"
       placeholder={placeholder}
     />
