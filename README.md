@@ -284,6 +284,15 @@ Van **5 errores reales** encontrados y corregidos en tres pasadas de revisión (
 
 Van **6 errores reales** encontrados y corregidos en cuatro pasadas. Nota honesta sobre el patrón: cada pasada ha encontrado algo, lo cual no es evidencia de que el código esté especialmente mal — es evidencia de que la revisión manual sin poder compilar/ejecutar contra las dependencias reales tiene un techo real de efectividad, y ese techo no baja a cero solo por insistir con más rondas. Si se pide una quinta pasada bajo las mismas condiciones (sin `npm install` real), es razonable esperar retornos decrecientes: correr `npm run typecheck && npm run test` de verdad va a ser más informativo que cualquier ronda adicional de lectura manual.
 
+## Build real en GitHub Actions — 5 errores encontrados y corregidos
+
+Esta fue la primera verificación contra las dependencias REALES (vía `npm ci` en GitHub Actions, no en este entorno sin red). Encontró 4 errores de compilación distintos (uno repetido) que ninguna de las cuatro pasadas de revisión manual anteriores había detectado, porque dependían exactamente de tener el paquete real instalado:
+
+1. **`NaturalInput.tsx` — `@ts-expect-error` sin usar + tipo de `math-field` incompleto.** El tipo JSX personalizado para `<math-field>` no incluía `placeholder` ni `virtual-keyboard-mode` como props válidas. Con React real instalado, el error SÍ aparecía (al contrario de lo que parecía en este entorno sin tipos de React, donde todo el tag ya fallaba por otras razones y enmascaraba esto). Corregido: se añadieron ambas props explícitamente al tipo, y se quitó el `@ts-expect-error` que ya no aplicaba.
+2. **`algebriteClient.ts` — el shim de tipos de `algebrite` no funcionó de verdad.** El intento anterior (`declare module "algebrite" { ... }` con una firma completa) no fue reconocido por el compilador real — seguía reportando `TS7016: Could not find a declaration file`. Corregido usando la forma "shorthand" que el propio mensaje de error de `tsc` sugiere (`declare module "algebrite";`), que tipa todo el módulo como `any`. Para que ese `any` no se cuele en callbacks (`.map()`, etc.) sin que el compilador lo detecte, cada llamada a `Algebrite.run(...)` en el archivo ahora anota explícitamente `: string` en la variable que recibe el resultado.
+
+Con esto van **8 errores reales corregidos en total** (2 de la primera pasada + 3 de la segunda + 2 de la tercera + 1 de la cuarta + estos de la build real). Esta última tanda es la más confiable de todas porque no depende de mi criterio sobre cómo "debería" comportarse el compilador — es el compilador real, con las dependencias reales, diciendo exactamente qué está mal.
+
 ## Requisitos previos
 
 - Node.js 20+
