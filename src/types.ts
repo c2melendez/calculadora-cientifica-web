@@ -21,6 +21,13 @@ export interface Step {
   id: string;
   latex: string;
   explanation: string;
+  /** Opcional — nombre corto del paso, ej. "Derivar cada factor". */
+  title?: string;
+  /** Opcional — regla aplicada, ej. "Regla del producto". */
+  rule?: string;
+  /** Opcional — expresión antes de aplicar la regla. Si no está presente,
+   * la tarjeta muestra solo `latex` como resultado del paso. */
+  latexBefore?: string;
 }
 
 export interface FractionResult {
