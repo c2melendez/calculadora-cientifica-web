@@ -1,9 +1,10 @@
 import { useState } from "react";
 
-// Teclado convencional de calculadora científica — spec v10 §5, replica la
-// estructura de pestañas de las imágenes de referencia (ppal/abc/fnc).
-
-type Tab = "ppal" | "abc" | "fnc";
+// Teclado denso tipo Casio (Fase 1 — sistema de diseño Precision Lab).
+// Reemplaza el teclado de pestañas (ppal/abc/fnc) por capas SHIFT/ALPHA
+// "de un solo disparo": se activan, se aplican a la siguiente tecla
+// presionada, y se desactivan solas (igual que una calculadora física).
+// Misma API pública que la versión anterior — es un reemplazo directo.
 
 interface MathKeyboardProps {
   onInsert: (latex: string) => void;
@@ -15,31 +16,30 @@ interface MathKeyboardProps {
   showAngleToggle?: boolean;
 }
 
-const PPAL_KEYS: Array<{ label: string; latex: string }> = [
-  { label: "x²", latex: "^2" },
-  { label: "xʸ", latex: "^{}" },
-  { label: "|x|", latex: "\\left|\\right|" },
-  { label: "√", latex: "\\sqrt{}" },
-  { label: "ⁿ√", latex: "\\sqrt[n]{}" },
-  { label: "π", latex: "\\pi" },
-  { label: "sin", latex: "\\sin()" },
-  { label: "cos", latex: "\\cos()" },
-  { label: "tan", latex: "\\tan()" },
+interface KeyDef {
+  label: string;
+  latex: string;
+  shiftLabel?: string;
+  shiftLatex?: string;
+  alphaLabel?: string;
+  alphaLatex?: string;
+}
+
+const STRUCT_ROW: KeyDef[] = [
+  { label: "(", latex: "(", alphaLabel: "|x|", alphaLatex: "\\left|\\right|" },
+  { label: ")", latex: ")", alphaLabel: "n!", alphaLatex: "!" },
+  { label: "x²", latex: "^2", shiftLabel: "√", shiftLatex: "\\sqrt{}" },
+  { label: "xʸ", latex: "^{}", shiftLabel: "ⁿ√", shiftLatex: "\\sqrt[n]{}" },
+  { label: "π", latex: "\\pi", shiftLabel: "e", shiftLatex: "e" },
 ];
 
-const FNC_KEYS: Array<{ label: string; latex: string }> = [
-  { label: "sin⁻¹", latex: "\\sin^{-1}()" },
-  { label: "cos⁻¹", latex: "\\cos^{-1}()" },
-  { label: "tan⁻¹", latex: "\\tan^{-1}()" },
-  { label: "eˣ", latex: "e^{}" },
-  { label: "ln", latex: "\\ln()" },
-  { label: "log", latex: "\\log()" },
-  { label: "e", latex: "e" },
-  { label: "n!", latex: "!" },
-  { label: "abs", latex: "\\left|\\right|" },
+const TRIG_ROW: KeyDef[] = [
+  { label: "sin", latex: "\\sin()", shiftLabel: "sin⁻¹", shiftLatex: "\\sin^{-1}()", alphaLabel: "x", alphaLatex: "x" },
+  { label: "cos", latex: "\\cos()", shiftLabel: "cos⁻¹", shiftLatex: "\\cos^{-1}()", alphaLabel: "y", alphaLatex: "y" },
+  { label: "tan", latex: "\\tan()", shiftLabel: "tan⁻¹", shiftLatex: "\\tan^{-1}()", alphaLabel: "z", alphaLatex: "z" },
+  { label: "ln", latex: "\\ln()", shiftLabel: "eˣ", shiftLatex: "e^{}", alphaLabel: "n", alphaLatex: "n" },
+  { label: "log", latex: "\\log()", shiftLabel: "10ˣ", shiftLatex: "10^{}", alphaLabel: "t", alphaLatex: "t" },
 ];
-
-const DIGIT_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "."];
 
 export function MathKeyboard({
   onInsert,
@@ -50,98 +50,161 @@ export function MathKeyboard({
   onToggleAngleMode,
   showAngleToggle = true,
 }: MathKeyboardProps) {
-  const [tab, setTab] = useState<Tab>("ppal");
+  const [modifier, setModifier] = useState<"shift" | "alpha" | null>(null);
+
+  function press(key: KeyDef) {
+    if (modifier === "shift" && key.shiftLatex) onInsert(key.shiftLatex);
+    else if (modifier === "alpha" && key.alphaLatex) onInsert(key.alphaLatex);
+    else onInsert(key.latex);
+    setModifier(null);
+  }
+
+  function toggle(m: "shift" | "alpha") {
+    setModifier((cur) => (cur === m ? null : m));
+  }
 
   return (
-    <div className="rounded-xl bg-keypad p-3">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex gap-4 text-sm font-medium text-slate-300">
-          {(["ppal", "abc", "fnc"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={t === tab ? "text-accent underline" : "hover:text-slate-100"}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        {showAngleToggle && (
-          <button
-            onClick={onToggleAngleMode}
-            className="rounded bg-panel px-2 py-1 text-xs font-semibold text-accent"
-          >
-            {angleMode}
-          </button>
+    <div className="rounded-xl bg-chrome p-3">
+      {/* Fila de control: SHIFT / ALPHA / navegación / modo de ángulo */}
+      <div className="mb-1.5 grid grid-cols-5 gap-1.5">
+        <ModKey label="SHIFT" active={modifier === "shift"} tone="marker" onClick={() => toggle("shift")} />
+        <ModKey label="ALPHA" active={modifier === "alpha"} tone="alpha" onClick={() => toggle("alpha")} />
+        <Key label="←" onClick={() => onInsert("\\left")} />
+        <Key label="→" onClick={() => onInsert("\\right")} />
+        {showAngleToggle ? (
+          <ModKey label={angleMode} active={false} tone="graph" onClick={onToggleAngleMode} />
+        ) : (
+          <span />
         )}
       </div>
 
-      {tab === "ppal" && (
-        <div className="mb-2 grid grid-cols-3 gap-2">
-          {PPAL_KEYS.map((k) => (
-            <KeyButton key={k.label} label={k.label} onClick={() => onInsert(k.latex)} />
-          ))}
-        </div>
-      )}
-      {tab === "fnc" && (
-        <div className="mb-2 grid grid-cols-3 gap-2">
-          {FNC_KEYS.map((k) => (
-            <KeyButton key={k.label} label={k.label} onClick={() => onInsert(k.latex)} />
-          ))}
-        </div>
-      )}
-      {tab === "abc" && (
-        <div className="mb-2 grid grid-cols-7 gap-2">
-          {"qwertyuiopasdfghjklzxcvbnm".split("").map((c) => (
-            <KeyButton key={c} label={c} onClick={() => onInsert(c)} />
-          ))}
-        </div>
-      )}
+      {/* Filas estructurales: cada tecla puede mostrar su etiqueta SHIFT/ALPHA arriba */}
+      <KeyRow keys={STRUCT_ROW} modifier={modifier} onPress={press} />
+      <KeyRow keys={TRIG_ROW} modifier={modifier} onPress={press} />
 
-      <div className="grid grid-cols-4 gap-2">
-        {DIGIT_KEYS.map((d) => (
-          <KeyButton key={d} label={d} onClick={() => onInsert(d)} />
-        ))}
-        {["÷", "×", "−", "+"].map((op, i) => (
-          <KeyButton
-            key={op}
-            label={op}
-            onClick={() => onInsert(["\\div", "\\times", "-", "+"][i])}
-          />
-        ))}
+      {/* Bloque numérico + operadores, igual que una calculadora física */}
+      <div className="mb-1.5 grid grid-cols-5 gap-1.5">
+        <DigitKey label="7" onClick={() => onInsert("7")} />
+        <DigitKey label="8" onClick={() => onInsert("8")} />
+        <DigitKey label="9" onClick={() => onInsert("9")} />
+        <Key label="DEL" small onClick={onBackspace} />
+        <Key label="AC" small tone="marker" onClick={onClear} />
       </div>
-
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        <KeyButton label="(" onClick={() => onInsert("(")} />
-        <KeyButton label=")" onClick={() => onInsert(")")} />
-        <KeyButton label="⌫" onClick={onBackspace} />
-        <KeyButton label="borrar todo" onClick={onClear} muted />
+      <div className="mb-1.5 grid grid-cols-5 gap-1.5">
+        <DigitKey label="4" onClick={() => onInsert("4")} />
+        <DigitKey label="5" onClick={() => onInsert("5")} />
+        <DigitKey label="6" onClick={() => onInsert("6")} />
+        <Key label="×" onClick={() => onInsert("\\times")} />
+        <Key label="÷" onClick={() => onInsert("\\div")} />
       </div>
-
-      <button
-        onClick={onEnter}
-        className="mt-2 w-full rounded-lg bg-accent py-2 text-lg font-semibold text-white hover:bg-accentSoft"
-      >
-        ⏎ Calcular
-      </button>
+      <div className="mb-1.5 grid grid-cols-5 gap-1.5">
+        <DigitKey label="1" onClick={() => onInsert("1")} />
+        <DigitKey label="2" onClick={() => onInsert("2")} />
+        <DigitKey label="3" onClick={() => onInsert("3")} />
+        <Key label="+" onClick={() => onInsert("+")} />
+        <Key label="−" onClick={() => onInsert("-")} />
+      </div>
+      <div className="grid grid-cols-5 gap-1.5">
+        <DigitKey label="0" onClick={() => onInsert("0")} />
+        <DigitKey label="." onClick={() => onInsert(".")} />
+        <Key label="×10ˣ" small onClick={() => onInsert("\\times 10^{}")} />
+        <Key label="Ans" small onClick={() => onInsert("\\text{Ans}")} />
+        <Key label="=" tone="graph" onClick={onEnter} />
+      </div>
     </div>
   );
 }
 
-function KeyButton({
+function KeyRow({
+  keys,
+  modifier,
+  onPress,
+}: {
+  keys: KeyDef[];
+  modifier: "shift" | "alpha" | null;
+  onPress: (key: KeyDef) => void;
+}) {
+  return (
+    <div className="mb-1.5 grid grid-cols-5 gap-1.5">
+      {keys.map((k) => {
+        const subLabel = modifier === "shift" ? k.shiftLabel : modifier === "alpha" ? k.alphaLabel : undefined;
+        return (
+          <div key={k.label} className="text-center">
+            <div
+              className={`mb-0.5 h-2.5 text-[8px] leading-none ${
+                subLabel ? (modifier === "shift" ? "text-marker" : "text-alpha") : "text-transparent"
+              }`}
+            >
+              {subLabel ?? "·"}
+            </div>
+            <button
+              onClick={() => onPress(k)}
+              className="w-full rounded-md bg-chrome-soft py-2 text-sm text-bone hover:bg-chrome-soft/70"
+            >
+              {k.label}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Key({
   label,
   onClick,
-  muted,
+  tone,
+  small,
 }: {
   label: string;
   onClick: () => void;
-  muted?: boolean;
+  tone?: "marker" | "graph";
+  small?: boolean;
 }) {
+  const toneClass =
+    tone === "marker" ? "text-marker" : tone === "graph" ? "text-graph" : "text-bone";
   return (
     <button
       onClick={onClick}
-      className={`rounded-lg py-2 text-lg ${
-        muted ? "bg-transparent text-slate-500 hover:text-slate-300" : "bg-panel text-slate-100 hover:bg-slate-700"
+      className={`w-full rounded-md bg-chrome-soft py-2 ${small ? "text-xs" : "text-sm"} font-medium hover:bg-chrome-soft/70 ${toneClass}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function DigitKey({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full rounded-md bg-chrome-soft/80 py-2 text-base font-medium text-bone hover:bg-chrome-soft/60"
+    >
+      {label}
+    </button>
+  );
+}
+
+function ModKey({
+  label,
+  active,
+  tone,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  tone: "marker" | "alpha" | "graph";
+  onClick: () => void;
+}) {
+  const toneMap = {
+    marker: { bg: "bg-marker-soft", text: "text-marker-text", idle: "text-marker" },
+    alpha: { bg: "bg-alpha-soft", text: "text-alpha", idle: "text-alpha" },
+    graph: { bg: "bg-graph/20", text: "text-graph", idle: "text-graph" },
+  }[tone];
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full rounded-md py-2 text-[11px] font-semibold ${
+        active ? `${toneMap.bg} ${toneMap.text}` : `bg-chrome-soft ${toneMap.idle}`
       }`}
     >
       {label}
