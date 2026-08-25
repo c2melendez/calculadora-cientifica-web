@@ -6,10 +6,11 @@ import { LinearSystemsMode } from "./modes/LinearSystems/LinearSystemsMode";
 import { MatrixMode } from "./modes/Matrices/MatrixMode";
 import { GraphingMode } from "./modes/Graphing/GraphingMode";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { ThemeToggle } from "./components/ThemeToggle";
 
-// Selector de modos por pestañas. Módulo 8: historial persistente
-// (IndexedDB) añadido como séptima pestaña, más ajustes responsive
-// (safe-area para notch/barra de gestos en móvil, spec v10 §12).
+// Selector de modos por pestañas tipo "chasis" (Fase 1 — sistema de diseño
+// Precision Lab). Historial persistente (IndexedDB) como séptima pestaña,
+// más ajustes responsive (safe-area para notch/barra de gestos en móvil).
 
 type Mode = "basic" | "algebra" | "calculus" | "systems" | "matrices" | "graphing" | "history";
 
@@ -27,32 +28,39 @@ export default function App() {
   const [mode, setMode] = useState<Mode>("basic");
 
   return (
-    <div className="min-h-screen bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
-      <header className="border-b border-slate-800 p-4 text-center text-lg font-semibold text-slate-100">
-        Calculadora Científica
+    <div className="min-h-screen bg-chrome pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+      <header className="flex items-center justify-between gap-2 border-b border-chrome-soft p-4">
+        <span className="w-[92px]" aria-hidden="true" />
+        <span className="font-display text-lg font-medium tracking-tight text-bone">
+          Precision Lab <span className="text-marker">Lite</span>
+        </span>
+        <ThemeToggle />
       </header>
-      <nav className="flex flex-wrap justify-center gap-3 border-b border-slate-800 bg-panel/50 px-2 py-2 text-sm">
+      <nav className="flex flex-wrap justify-center gap-1.5 border-b border-chrome-soft bg-chrome px-2 py-2 text-sm">
         {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
+            aria-current={m === mode ? "page" : undefined}
             className={
               m === mode
-                ? "font-semibold text-accent underline"
-                : "text-slate-400 hover:text-slate-100"
+                ? "rounded-md border-b-2 border-marker bg-marker-soft px-3 py-1.5 font-medium text-marker-text"
+                : "rounded-md border-b-2 border-transparent px-3 py-1.5 text-bone/70 hover:bg-chrome-soft hover:text-bone"
             }
           >
             {MODE_LABELS[m]}
           </button>
         ))}
       </nav>
-      {mode === "basic" && <BasicScientificMode />}
-      {mode === "algebra" && <AlgebraMode />}
-      {mode === "calculus" && <CalculusMode />}
-      {mode === "systems" && <LinearSystemsMode />}
-      {mode === "matrices" && <MatrixMode />}
-      {mode === "graphing" && <GraphingMode />}
-      {mode === "history" && <HistoryPanel />}
+      <main className="bg-paper text-ink">
+        {mode === "basic" && <BasicScientificMode />}
+        {mode === "algebra" && <AlgebraMode />}
+        {mode === "calculus" && <CalculusMode />}
+        {mode === "systems" && <LinearSystemsMode />}
+        {mode === "matrices" && <MatrixMode />}
+        {mode === "graphing" && <GraphingMode />}
+        {mode === "history" && <HistoryPanel />}
+      </main>
     </div>
   );
 }
