@@ -99,4 +99,59 @@ describe("parseExpression", () => {
       expect.objectContaining({ code: ErrorCode.PARSE_ERROR }),
     );
   });
+
+  // Fase 3 de la hoja de ruta ("motor científico completo") — verificado
+  // contra el paquete algebrite real antes de escribir estos casos, no
+  // asumido (ver postfixOperators.ts para el porqué del orden del pipeline).
+  describe("Fase 3 — motor científico completo", () => {
+    it('"5!" se expande a factorial(5), no se pasa el "!" literal', () => {
+      expect(parseExpression("5!").algebrite).toBe("factorial(5)");
+    });
+
+    it('"5!x" inserta la multiplicación implícita tras el factorial (bug real: antes "!" no contaba como fin de átomo)', () => {
+      expect(parseExpression("5!x").algebrite).toBe("factorial(5)*x");
+    });
+
+    it('"3+2!" aplica "!" solo al 2, no a "3+2" completo', () => {
+      expect(parseExpression("3+2!").algebrite).toBe("3+factorial(2)");
+    });
+
+    it('"sin(x)!" incluye la función completa como átomo del factorial', () => {
+      expect(parseExpression("sin(x)!").algebrite).toBe("factorial(sin(x))");
+    });
+
+    it('"50%" se expande a (50)/100', () => {
+      expect(parseExpression("50%").algebrite).toBe("(50)/100");
+    });
+
+    it('"50%x" inserta la multiplicación implícita tras el porcentaje', () => {
+      expect(parseExpression("50%x").algebrite).toBe("(50)/100*x");
+    });
+
+    it("tau y phi se sustituyen por su valor exacto (Algebrite no los conoce nativamente)", () => {
+      expect(parseExpression("tau").algebrite).toBe("(2*pi)");
+      expect(parseExpression("phi").algebrite).toBe("((1+sqrt(5))/2)");
+    });
+
+    it("sinh/cosh/tanh/asinh/acosh/atanh/exp/sign son funciones válidas (aridad 1)", () => {
+      for (const fn of ["sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "sign"]) {
+        expect(() => parseExpression(`${fn}(1)`)).not.toThrow();
+      }
+    });
+
+    it("nPr(5,2) y nCr(5,2) se reescriben en términos de factorial (Algebrite no las conoce nativamente)", () => {
+      expect(parseExpression("nPr(5,2)").algebrite).toBe(
+        "(factorial(5)/factorial((5)-(2)))",
+      );
+      expect(parseExpression("nCr(5,2)").algebrite).toBe(
+        "(factorial(5)/(factorial(2)*factorial((5)-(2))))",
+      );
+    });
+
+    it("nPr/nCr con aridad distinta de 2 es PARSE_ERROR", () => {
+      expect(() => parseExpression("nPr(5)")).toThrowError(
+        expect.objectContaining({ code: ErrorCode.PARSE_ERROR }),
+      );
+    });
+  });
 });

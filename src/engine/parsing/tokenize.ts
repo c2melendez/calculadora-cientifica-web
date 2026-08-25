@@ -15,7 +15,7 @@ export interface Token {
   value: string;
 }
 
-const OPERATORS = new Set(["+", "-", "*", "/", "^", "!"]);
+const OPERATORS = new Set(["+", "-", "*", "/", "^", "!", "%"]);
 
 function parseError(message: string): AppError {
   return { code: ErrorCode.PARSE_ERROR, message };

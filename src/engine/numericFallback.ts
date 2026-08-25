@@ -24,6 +24,26 @@ const UNARY_FUNCTIONS: Record<string, Fn> = {
   sec: (x) => 1 / Math.cos(x),
   csc: (x) => 1 / Math.sin(x),
   cot: (x) => 1 / Math.tan(x),
+  // Fase 3: sinh/cosh/tanh SÍ los evalúa Algebrite con float(...), pero se
+  // incluyen aquí también por si el fallback numérico los recibe desde
+  // otra ruta (ej. una integral/límite con una hiperbólica adentro).
+  // asinh/acosh/atanh/sign, en cambio, Algebrite NO los evalúa ni con
+  // float() (confirmado probando contra el paquete real) — para estos,
+  // este fallback es el ÚNICO camino a un valor numérico.
+  sinh: Math.sinh,
+  cosh: Math.cosh,
+  tanh: Math.tanh,
+  asinh: Math.asinh,
+  acosh: Math.acosh,
+  atanh: Math.atanh,
+  exp: Math.exp,
+  sign: Math.sign,
+  factorial: (x) => {
+    if (!Number.isInteger(x) || x < 0) return NaN;
+    let result = 1;
+    for (let k = 2; k <= x; k++) result *= k;
+    return result;
+  },
   ln: Math.log,
   log: Math.log10,
   sqrt: Math.sqrt,

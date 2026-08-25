@@ -7,6 +7,7 @@
 
 import { evaluate, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
 import { toFractionResult } from "../engine/fractions";
+import { compileNumeric } from "../engine/numericFallback";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
 import {
   calcDerivative,
@@ -143,9 +144,40 @@ function handleSolveAlgebra(
   }
 }
 
+/**
+ * Fase 3: Algebrite nunca evalúa asinh/acosh/atanh/sign a un número —
+ * confirmado probando el paquete real, no solo con evaluate() (que ya
+ * reintenta con float()) sino incluso llamándolo directo. Si el resultado
+ * de evaluate() todavía contiene alguna de estas, se recurre al
+ * evaluador numérico propio (engine/numericFallback.ts) como último
+ * recurso antes de rendirse.
+ */
+const ALGEBRITE_UNSUPPORTED_NUMERIC = /\b(asinh|acosh|atanh|sign)\(/;
+
+function tryNumericFallback(expr: string): string | null {
+  try {
+    // Expresión puramente numérica (sin variable libre real que resolver
+    // aquí) — se compila con un nombre de variable que no debería
+    // aparecer en la expresión, y se evalúa en un punto cualquiera.
+    const fn = compileNumeric(expr, "__evaluate_no_var__");
+    const value = fn(0);
+    return Number.isFinite(value) ? String(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 function handleEvaluate(expr: string, requestId: string): MathResult {
   try {
-    const raw = evaluate(expr);
+    let raw = evaluate(expr);
+    let confidence: MathResult["confidence"] = "SYMBOLIC";
+    if (ALGEBRITE_UNSUPPORTED_NUMERIC.test(raw)) {
+      const numeric = tryNumericFallback(expr);
+      if (numeric !== null) {
+        raw = numeric;
+        confidence = "NUMERIC_FALLBACK";
+      }
+    }
     const isNumeric = /^-?\d+(\.\d+)?$/.test(raw) || /^-?\d+\/\d+$/.test(raw);
     return {
       success: true,
@@ -153,7 +185,7 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
       fraction: isNumeric ? toFractionResult(raw) : undefined,
       steps: [],
       hasDetailedSteps: false,
-      confidence: "SYMBOLIC",
+      confidence,
       requestId,
     };
   } catch (err) {

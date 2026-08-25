@@ -25,17 +25,33 @@ function toAppError(code: ErrorCode, message: string): AppError {
   return { code, message };
 }
 
+/**
+ * Fase 3: sinh/cosh/tanh (entre otras) quedan sin evaluar simbólicamente
+ * en Algebrite salvo que se envuelvan en float(...) — confirmado probando
+ * el paquete real, no asumido. asinh/acosh/atanh/sign NO los evalúa
+ * Algebrite ni siquiera con float() (también confirmado); para esos,
+ * quien llama a evaluate() debe recurrir al fallback numérico propio
+ * (engine/numericFallback.ts) si el resultado los sigue conteniendo.
+ */
+const MAY_NEED_FLOAT = /\b(sinh|cosh|tanh|asinh|acosh|atanh|sign)\(/;
+
 /** Evalúa/simplifica una expresión. Lanza AppError normalizado en caso de fallo. */
 export function evaluate(expressionLatex: string): string {
   try {
     // Algebrite trabaja con su propia sintaxis de entrada; la conversión
     // LaTeX -> sintaxis Algebrite vive en engine/parsing (Módulo 2).
-    const result: string = Algebrite.run(expressionLatex);
+    let result: string = Algebrite.run(expressionLatex);
     if (typeof result !== "string" || result.length === 0) {
       throw toAppError(ErrorCode.PARSE_ERROR, "Algebrite no devolvió resultado.");
     }
     if (/stop|Stop/.test(result)) {
       throw toAppError(ErrorCode.PARSE_ERROR, `Algebrite reportó un error: ${result}`);
+    }
+    if (MAY_NEED_FLOAT.test(result)) {
+      const retried: string = Algebrite.run(`float(${expressionLatex})`);
+      if (typeof retried === "string" && retried.length > 0 && !/stop|Stop/.test(retried)) {
+        result = retried;
+      }
     }
     return result;
   } catch (err) {

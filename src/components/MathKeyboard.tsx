@@ -29,8 +29,8 @@ const STRUCT_ROW: KeyDef[] = [
   { label: "(", latex: "(", alphaLabel: "|x|", alphaLatex: "\\left|\\right|" },
   { label: ")", latex: ")", alphaLabel: "n!", alphaLatex: "!" },
   { label: "x²", latex: "^2", shiftLabel: "√", shiftLatex: "\\sqrt{}" },
-  { label: "xʸ", latex: "^{}", shiftLabel: "ⁿ√", shiftLatex: "\\sqrt[n]{}" },
-  { label: "π", latex: "\\pi", shiftLabel: "e", shiftLatex: "e" },
+  { label: "xʸ", latex: "^{}", shiftLabel: "ⁿ√", shiftLatex: "\\sqrt[n]{}", alphaLabel: "φ", alphaLatex: "phi" },
+  { label: "π", latex: "\\pi", shiftLabel: "e", shiftLatex: "e", alphaLabel: "τ", alphaLatex: "tau" },
 ];
 
 const TRIG_ROW: KeyDef[] = [
@@ -39,6 +39,20 @@ const TRIG_ROW: KeyDef[] = [
   { label: "tan", latex: "\\tan()", shiftLabel: "tan⁻¹", shiftLatex: "\\tan^{-1}()", alphaLabel: "z", alphaLatex: "z" },
   { label: "ln", latex: "\\ln()", shiftLabel: "eˣ", shiftLatex: "e^{}", alphaLabel: "n", alphaLatex: "n" },
   { label: "log", latex: "\\log()", shiftLabel: "10ˣ", shiftLatex: "10^{}", alphaLabel: "t", alphaLatex: "t" },
+];
+
+/**
+ * Fase 3 ("motor científico completo"): hiperbólicas + exp/sign, y nPr/nCr
+ * en SHIFT (comparten fila con exp/sign por espacio — no encajaban en
+ * TRIG_ROW, que ya tenía sus 5 teclas ocupadas). Ver
+ * engine/parsing/postfixOperators.ts y constants.ts para el soporte real.
+ */
+const HYP_ROW: KeyDef[] = [
+  { label: "sinh", latex: "sinh()", shiftLabel: "sinh⁻¹", shiftLatex: "asinh()" },
+  { label: "cosh", latex: "cosh()", shiftLabel: "cosh⁻¹", shiftLatex: "acosh()" },
+  { label: "tanh", latex: "tanh()", shiftLabel: "tanh⁻¹", shiftLatex: "atanh()" },
+  { label: "exp", latex: "exp()", shiftLabel: "nPr", shiftLatex: "nPr(,)" },
+  { label: "sign", latex: "sign()", shiftLabel: "nCr", shiftLatex: "nCr(,)" },
 ];
 
 export function MathKeyboard({
@@ -81,6 +95,7 @@ export function MathKeyboard({
       {/* Filas estructurales: cada tecla puede mostrar su etiqueta SHIFT/ALPHA arriba */}
       <KeyRow keys={STRUCT_ROW} modifier={modifier} onPress={press} />
       <KeyRow keys={TRIG_ROW} modifier={modifier} onPress={press} />
+      <KeyRow keys={HYP_ROW} modifier={modifier} onPress={press} />
 
       {/* Bloque numérico + operadores, igual que una calculadora física */}
       <div className="mb-1.5 grid grid-cols-5 gap-1.5">
@@ -107,7 +122,7 @@ export function MathKeyboard({
       <div className="grid grid-cols-5 gap-1.5">
         <DigitKey label="0" onClick={() => onInsert("0")} />
         <DigitKey label="." onClick={() => onInsert(".")} />
-        <Key label="×10ˣ" small onClick={() => onInsert("\\times 10^{}")} />
+        <Key label="%" small onClick={() => onInsert("%")} />
         <Key label="Ans" small onClick={() => onInsert("\\text{Ans}")} />
         <Key label="=" tone="graph" onClick={onEnter} />
       </div>

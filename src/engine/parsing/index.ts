@@ -12,7 +12,8 @@ import { tokenize, type Token } from "./tokenize";
 import { insertImplicitMultiplication } from "./implicitMultiplication";
 import { validateFunctionArity } from "./functionArity";
 import { splitEquation } from "./equationSplit";
-import { KNOWN_FUNCTION_NAMES } from "./constants";
+import { expandPostfixOperators } from "./postfixOperators";
+import { KNOWN_FUNCTION_NAMES, CONSTANT_SUBSTITUTIONS } from "./constants";
 
 export interface ParsedExpression {
   /** Cadena lista para pasar a Algebrite. Para ecuaciones, es "(left)-(right)". */
@@ -31,9 +32,61 @@ function tokensToAlgebrite(tokens: Token[]): string {
   return tokens
     .map((t) => {
       if (t.type === "function") return t.value; // el "(" siguiente ya viene en el token de lparen
+      // Fase 3: τ/φ no son nativas de Algebrite — se sustituyen por su
+      // valor exacto (2π / razón áurea) antes de ensamblar el string.
+      if (t.type === "identifier" && t.value in CONSTANT_SUBSTITUTIONS) {
+        return CONSTANT_SUBSTITUTIONS[t.value];
+      }
       return t.value;
     })
     .join("");
+}
+
+/**
+ * nPr/nCr no son funciones nativas de Algebrite (confirmado probando
+ * contra el paquete real) — se reescriben en términos de factorial, que
+ * sí es nativo, antes de enviar la expresión. Mismo patrón de escaneo
+ * balanceado que wrapFunctionArgsWithDegToRad, para dos argumentos.
+ */
+function rewriteBinaryFunction(expr: string, fnName: string, build: (a: string, b: string) => string): string {
+  let result = "";
+  let i = 0;
+  while (i < expr.length) {
+    if (expr.startsWith(`${fnName}(`, i)) {
+      const start = i + fnName.length;
+      let depth = 1;
+      let j = start + 1;
+      let commaIndex = -1;
+      while (j < expr.length && depth > 0) {
+        if (expr[j] === "(") depth++;
+        else if (expr[j] === ")") depth--;
+        else if (expr[j] === "," && depth === 1 && commaIndex === -1) commaIndex = j;
+        j++;
+      }
+      if (commaIndex === -1) {
+        // Forma malformada (sin coma en el nivel esperado) — se deja tal
+        // cual para que Algebrite reporte el error, en vez de asumir algo.
+        result += expr.slice(i, j);
+        i = j;
+        continue;
+      }
+      const a = expr.slice(start + 1, commaIndex);
+      const b = expr.slice(commaIndex + 1, j - 1);
+      result += build(a, b);
+      i = j;
+    } else {
+      result += expr[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+function rewriteCombinatorics(algebrite: string): string {
+  let result = algebrite;
+  result = rewriteBinaryFunction(result, "nPr", (n, r) => `(factorial(${n})/factorial((${n})-(${r})))`);
+  result = rewriteBinaryFunction(result, "nCr", (n, r) => `(factorial(${n})/(factorial(${r})*factorial((${n})-(${r}))))`);
+  return result;
 }
 
 function extractFreeVariables(tokens: Token[]): string[] {
@@ -44,7 +97,7 @@ function extractFreeVariables(tokens: Token[]): string[] {
   return [...vars];
 }
 
-/** Convierte los argumentos de trig DIRECTAS (sin/cos/tan) de grados a radianes cuando angleMode === "GRAD" (spec v10 §5: alcance exacto de angle_unit). */
+/** Convierte los argumentos de trig DIRECTAS (sin/cos/tan) de grados a radianes cuando angleMode === "GRAD" (spec v10 §5: alcance exacto de angle_unit). "GRAD" es una decisión deliberada del proyecto para significar grados sexagesimales, no gradianes — ver spec_calculadora_v10_sin_backend.md. */
 function applyAngleMode(algebrite: string, angleMode: "RAD" | "GRAD"): string {
   if (angleMode === "RAD") return algebrite;
   const directTrig = ["sin", "cos", "tan"];
@@ -95,10 +148,10 @@ export function parseExpression(
   const { left, right, isEquation } = splitEquation(unicodeNormalized);
 
   function pipelineOneSide(side: string): { algebrite: string; tokens: Token[] } {
-    const tokens = tokenize(side);
+    const tokens = expandPostfixOperators(tokenize(side));
     validateFunctionArity(tokens);
     const withImplicitMul = insertImplicitMultiplication(tokens);
-    const algebrite = applyAngleMode(tokensToAlgebrite(withImplicitMul), angleMode);
+    const algebrite = rewriteCombinatorics(applyAngleMode(tokensToAlgebrite(withImplicitMul), angleMode));
     return { algebrite, tokens: withImplicitMul };
   }
 
