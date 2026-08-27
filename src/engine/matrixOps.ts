@@ -308,3 +308,102 @@ export function powerMatrix(a: Matrix, n: number): { result: Matrix; steps: Step
   }
   return { result, steps: [{ id: "power", latex: `A^{${n}} = ${matrixToLatex(result)}`, explanation: `Multiplicación repetida de A por sí misma ${n} veces.` }] };
 }
+
+// ---------------------------------------------------------------------------
+// Fase C (spec UX estilo ClassCalc §4): ref/rref/producto de Kronecker.
+// ref/rref reutilizan la misma mecánica de eliminación de gaussJordan (por
+// eso vive todo en este archivo — evita una tercera copia de Gauss-Jordan).
+// ---------------------------------------------------------------------------
+
+/** Forma escalonada (ref): pivotes no necesariamente 1, sin reducción hacia arriba de cada pivote. */
+export function ref(a: Matrix): { result: Matrix; steps: Step[] } {
+  const m = cloneMatrix(a);
+  const rows = m.length;
+  const cols = dims(a).cols;
+  const steps: Step[] = [{ id: "initial", latex: matrixToLatex(m), explanation: "Matriz original." }];
+  let pivotRow = 0;
+  for (let col = 0; col < cols && pivotRow < rows; col++) {
+    let sel = -1;
+    for (let r = pivotRow; r < rows; r++) {
+      if (!m[r][col].equals(0)) {
+        sel = r;
+        break;
+      }
+    }
+    if (sel === -1) continue;
+    if (sel !== pivotRow) {
+      [m[sel], m[pivotRow]] = [m[pivotRow], m[sel]];
+      steps.push({ id: `swap-${pivotRow}`, latex: matrixToLatex(m), explanation: `Se intercambia fila ${pivotRow + 1} con fila ${sel + 1}.` });
+    }
+    for (let r = pivotRow + 1; r < rows; r++) {
+      const factor = m[r][col].div(m[pivotRow][col]);
+      if (factor.equals(0)) continue;
+      m[r] = m[r].map((v, c) => v.sub(factor.mul(m[pivotRow][c])));
+      steps.push({
+        id: `eliminate-${r}-${pivotRow}`,
+        latex: matrixToLatex(m),
+        explanation: `Se elimina la columna ${col + 1} en la fila ${r + 1} usando la fila ${pivotRow + 1}.`,
+      });
+    }
+    pivotRow++;
+  }
+  steps.push({ id: "ref", latex: matrixToLatex(m), explanation: "Forma escalonada (ref)." });
+  return { result: m, steps };
+}
+
+/** Forma escalonada reducida (rref): cada pivote es 1, sin entradas distintas de 0 arriba o abajo de él. */
+export function rref(a: Matrix): { result: Matrix; steps: Step[] } {
+  const m = cloneMatrix(a);
+  const rows = m.length;
+  const cols = dims(a).cols;
+  const steps: Step[] = [{ id: "initial", latex: matrixToLatex(m), explanation: "Matriz original." }];
+  let pivotRow = 0;
+  for (let col = 0; col < cols && pivotRow < rows; col++) {
+    let sel = -1;
+    for (let r = pivotRow; r < rows; r++) {
+      if (!m[r][col].equals(0)) {
+        sel = r;
+        break;
+      }
+    }
+    if (sel === -1) continue;
+    if (sel !== pivotRow) {
+      [m[sel], m[pivotRow]] = [m[pivotRow], m[sel]];
+      steps.push({ id: `swap-${pivotRow}`, latex: matrixToLatex(m), explanation: `Se intercambia fila ${pivotRow + 1} con fila ${sel + 1}.` });
+    }
+    const pivotValue = m[pivotRow][col];
+    if (!pivotValue.equals(1)) {
+      m[pivotRow] = m[pivotRow].map((v) => v.div(pivotValue));
+      steps.push({ id: `normalize-${pivotRow}`, latex: matrixToLatex(m), explanation: `Se divide la fila ${pivotRow + 1} entre ${fmt(pivotValue)}.` });
+    }
+    for (let r = 0; r < rows; r++) {
+      if (r === pivotRow) continue;
+      const factor = m[r][col];
+      if (factor.equals(0)) continue;
+      m[r] = m[r].map((v, c) => v.sub(factor.mul(m[pivotRow][c])));
+      steps.push({ id: `eliminate-${r}-${pivotRow}`, latex: matrixToLatex(m), explanation: `Se elimina la columna ${col + 1} en la fila ${r + 1}.` });
+    }
+    pivotRow++;
+  }
+  steps.push({ id: "rref", latex: matrixToLatex(m), explanation: "Forma escalonada reducida (rref)." });
+  return { result: m, steps };
+}
+
+/** Producto de Kronecker A⊗B. */
+export function kroneckerProduct(a: Matrix, b: Matrix): { result: Matrix; steps: Step[] } {
+  const da = dims(a);
+  const db = dims(b);
+  const result: Matrix = [];
+  for (let i = 0; i < da.rows; i++) {
+    for (let bi = 0; bi < db.rows; bi++) {
+      const row: Fraction[] = [];
+      for (let j = 0; j < da.cols; j++) {
+        for (let bj = 0; bj < db.cols; bj++) {
+          row.push(a[i][j].mul(b[bi][bj]));
+        }
+      }
+      result.push(row);
+    }
+  }
+  return { result, steps: [{ id: "kron", latex: matrixToLatex(result), explanation: "Producto de Kronecker A⊗B." }] };
+}

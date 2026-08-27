@@ -19,9 +19,9 @@ export function MatrixGridInput({ rows, cols, values, onChange, label }: MatrixG
 
   return (
     <div>
-      <p className="mb-1 text-sm text-slate-400">{label}</p>
+      <p className="mb-1 text-sm text-muted">{label}</p>
       <div
-        className="inline-grid gap-1 rounded-lg bg-panel p-2"
+        className="inline-grid gap-1 rounded-lg bg-chrome p-2"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: rows }).map((_, r) =>
@@ -30,7 +30,7 @@ export function MatrixGridInput({ rows, cols, values, onChange, label }: MatrixG
               key={`${r}-${c}`}
               value={values[r]?.[c] ?? ""}
               onChange={(e) => setCell(r, c, e.target.value)}
-              className="w-14 rounded bg-surface px-1 py-1 text-center text-slate-100"
+              className="w-14 rounded bg-chrome-soft px-1 py-1 text-center text-bone"
               placeholder="0"
             />
           )),

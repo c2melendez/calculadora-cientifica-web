@@ -25,6 +25,9 @@ import {
   determinant,
   invertMatrix,
   powerMatrix,
+  ref,
+  rref,
+  kroneckerProduct,
 } from "../engine/matrixOps";
 import { analyzeGraph } from "../engine/stepEngine/graphing";
 import { ErrorCode, makeRequestId, type MathResult, type AppError } from "../types";
@@ -66,7 +69,7 @@ export type ComputeRequest =
   | {
       type: "matrixOp";
       requestId: string;
-      op: "add" | "subtract" | "multiply" | "transpose" | "determinant" | "inverse" | "power";
+      op: "add" | "subtract" | "multiply" | "transpose" | "determinant" | "inverse" | "power" | "ref" | "rref" | "kron";
       a: (string | number)[][];
       b?: (string | number)[][];
       exponent?: number;
@@ -306,6 +309,24 @@ function handleMatrixOp(
       }
       case "power": {
         const { result, steps: s } = powerMatrix(a, msg.exponent ?? 1);
+        resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
+        steps = s;
+        break;
+      }
+      case "ref": {
+        const { result, steps: s } = ref(a);
+        resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
+        steps = s;
+        break;
+      }
+      case "rref": {
+        const { result, steps: s } = rref(a);
+        resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
+        steps = s;
+        break;
+      }
+      case "kron": {
+        const { result, steps: s } = kroneckerProduct(a, b!);
         resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
         steps = s;
         break;

@@ -7,6 +7,9 @@ import {
   determinant,
   invertMatrix,
   powerMatrix,
+  ref,
+  rref,
+  kroneckerProduct,
 } from "../src/engine/matrixOps";
 
 // NO EJECUTADO en el entorno de generación. Correr con `npm run test`.
@@ -93,5 +96,46 @@ describe("matrixOps", () => {
       ["1", "0"],
       ["0", "1"],
     ]);
+  });
+
+  // Fase C (spec UX estilo ClassCalc §4) — verificado contra un caso
+  // manual conocido antes de escribir estos casos, no asumido.
+  it("rref de una matriz singular deja la fila dependiente en ceros", () => {
+    const singular = toFractionMatrix([
+      ["1", "2"],
+      ["2", "4"],
+    ]);
+    const { result } = rref(singular);
+    expect(result[1].map((v) => v.toFraction())).toEqual(["0", "0"]);
+  });
+
+  it("ref de la identidad no la altera", () => {
+    const identity = toFractionMatrix([
+      ["1", "0"],
+      ["0", "1"],
+    ]);
+    const { result } = ref(identity);
+    expect(result.map((r) => r.map((v) => v.toFraction()))).toEqual([
+      ["1", "0"],
+      ["0", "1"],
+    ]);
+  });
+
+  it("producto de Kronecker de 2x2 con 2x2 da 4x4 con las entradas correctas", () => {
+    const a = toFractionMatrix([
+      ["1", "2"],
+      ["3", "4"],
+    ]);
+    const b = toFractionMatrix([
+      ["0", "5"],
+      ["6", "7"],
+    ]);
+    const { result } = kroneckerProduct(a, b);
+    expect(result.length).toBe(4);
+    expect(result[0].length).toBe(4);
+    // result[i*2+bi][j*2+bj] = A[i][j] * B[bi][bj]
+    expect(result[0][1].toFraction()).toBe("5"); // A[0][0]*B[0][1] = 1*5
+    expect(result[2][1].toFraction()).toBe("15"); // A[1][0]*B[0][1] = 3*5
+    expect(result[3][2].toFraction()).toBe("24"); // A[1][1]*B[1][0] = 4*6
   });
 });
