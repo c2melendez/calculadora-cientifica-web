@@ -3,6 +3,7 @@ import { NaturalInput } from "../../components/NaturalInput";
 import { MathKeyboard } from "../../components/MathKeyboard";
 import { ResultPanel } from "../../components/ResultPanel";
 import { AngleModePopover } from "../../components/AngleModePopover";
+import { HistoryLog, type SessionHistoryEntry } from "../../components/HistoryLog";
 import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
 import { addHistoryEntry } from "../../store/historyDb";
@@ -24,6 +25,7 @@ export function BasicScientificMode() {
   const [angleMode, setAngleMode] = useState<"RAD" | "GRAD">("RAD");
   const workerRef = useRef<Worker | null>(null);
   const [mathField, setMathField] = useState<MathFieldRef>(null);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>([]);
 
   const getWorker = useCallback(() => {
     if (!workerRef.current) {
@@ -65,6 +67,10 @@ export function BasicScientificMode() {
         setResult(e.data);
         if (e.data.success) {
           addHistoryEntry({ mode: "Científica", input: exprLatex, resultSummary: e.data.resultLatex ?? "" });
+          setSessionHistory((prev) => [
+            ...prev,
+            { id: e.data.requestId, input: exprLatex, result: e.data },
+          ]);
         }
       };
       worker.postMessage({ type: "evaluate", requestId, expressionAlgebrite: algebrite });
@@ -95,6 +101,7 @@ export function BasicScientificMode() {
       <div className="flex items-center justify-end">
         <AngleModePopover angleMode={angleMode} onToggle={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))} />
       </div>
+      <HistoryLog entries={sessionHistory} />
       <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una expresión…" fieldRef={setMathField} />
       <ResultPanel result={result} />
       <MathKeyboard
