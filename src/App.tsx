@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BasicScientificMode } from "./modes/BasicScientific/BasicScientificMode";
+import { SimpleBasicMode } from "./modes/SimpleBasic/SimpleBasicMode";
 import { AlgebraMode } from "./modes/Algebra/AlgebraMode";
 import { CalculusMode } from "./modes/Calculus/CalculusMode";
 import { LinearSystemsMode } from "./modes/LinearSystems/LinearSystemsMode";
@@ -11,11 +12,18 @@ import { ThemeToggle } from "./components/ThemeToggle";
 // Selector de modos por pestañas tipo "chasis" (Fase 1 — sistema de diseño
 // Precision Lab). Historial persistente (IndexedDB) como séptima pestaña,
 // más ajustes responsive (safe-area para notch/barra de gestos en móvil).
+//
+// Fase B (spec UX estilo ClassCalc): se agregó "simple" (modo Basic, 4
+// operaciones) como pestaña adicional — sin fusionar Álgebra/Cálculo/
+// Sistemas dentro de Científica ni cambiar a un dropdown de 4 modos
+// todavía (decisión explícita: se pospone hasta que el ícono "sistema"
+// del teclado de Científica tenga lógica real de resolución).
 
-type Mode = "basic" | "algebra" | "calculus" | "systems" | "matrices" | "graphing" | "history";
+type Mode = "basic" | "simple" | "algebra" | "calculus" | "systems" | "matrices" | "graphing" | "history";
 
 const MODE_LABELS: Record<Mode, string> = {
   basic: "Científica",
+  simple: "Basic",
   algebra: "Álgebra",
   calculus: "Cálculo",
   systems: "Sistemas",
@@ -54,6 +62,7 @@ export default function App() {
       </nav>
       <main className="bg-paper text-ink">
         {mode === "basic" && <BasicScientificMode />}
+        {mode === "simple" && <SimpleBasicMode />}
         {mode === "algebra" && <AlgebraMode />}
         {mode === "calculus" && <CalculusMode />}
         {mode === "systems" && <LinearSystemsMode />}
