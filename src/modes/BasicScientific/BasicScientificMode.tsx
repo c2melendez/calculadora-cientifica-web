@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { NaturalInput } from "../../components/NaturalInput";
 import { MathKeyboard } from "../../components/MathKeyboard";
 import { ResultPanel } from "../../components/ResultPanel";
+import { AngleModePopover } from "../../components/AngleModePopover";
 import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
 import { addHistoryEntry } from "../../store/historyDb";
@@ -9,12 +10,20 @@ import { addHistoryEntry } from "../../store/historyDb";
 // Modo 1 de la spec v10 §5. Orquesta NaturalInput + MathKeyboard +
 // ResultPanel, delegando todo el cómputo al Web Worker (nunca al hilo
 // principal — regla dura de §3/§12).
+//
+// Fase A (spec UX estilo ClassCalc): el teclado ahora inserta con
+// field.insert() (cursor-aware, plantillas #0) en vez de concatenar texto
+// al final — se guarda una referencia real al <math-field>. El popover
+// DEG/RAD sale del teclado y vive en el header de este modo.
+
+type MathFieldRef = { insert: (s: string) => void; focus: () => void; value: string } | null;
 
 export function BasicScientificMode() {
   const [latex, setLatex] = useState("");
   const [result, setResult] = useState<MathResult | null>(null);
   const [angleMode, setAngleMode] = useState<"RAD" | "GRAD">("RAD");
   const workerRef = useRef<Worker | null>(null);
+  const [mathField, setMathField] = useState<MathFieldRef>(null);
 
   const getWorker = useCallback(() => {
     if (!workerRef.current) {
@@ -26,61 +35,74 @@ export function BasicScientificMode() {
     return workerRef.current;
   }, []);
 
-  const handleInsert = useCallback((token: string) => {
-    // MathLive maneja la inserción real en el campo enfocado; aquí solo se
-    // actualiza el estado cuando el usuario usa el teclado propio de la app
-    // en vez de escribir directamente en el math-field.
-    setLatex((prev) => prev + token);
-  }, []);
+  const runExpression = useCallback(
+    (exprLatex: string) => {
+      const requestId = makeRequestId();
 
-  const handleCalculate = useCallback(() => {
-    const requestId = makeRequestId();
+      // El parser (Módulo 2) es liviano (tokenización + reglas de sintaxis,
+      // no cómputo simbólico pesado) y corre en el hilo principal a propósito
+      // — solo el cálculo con Algebrite pasa al Web Worker (spec v10 §3/§12).
+      let algebrite: string;
+      try {
+        algebrite = parseExpression(exprLatex, angleMode).algebrite;
+      } catch (err) {
+        const appErr = err as { code?: ErrorCode; message?: string };
+        setResult({
+          success: false,
+          errorCode: appErr.code ?? ErrorCode.PARSE_ERROR,
+          errorMessage: appErr.message ?? "Expresión inválida.",
+          resultLatex: null,
+          steps: [],
+          hasDetailedSteps: false,
+          confidence: "SYMBOLIC",
+          requestId,
+        });
+        return;
+      }
 
-    // El parser (Módulo 2) es liviano (tokenización + reglas de sintaxis,
-    // no cómputo simbólico pesado) y corre en el hilo principal a propósito
-    // — solo el cálculo con Algebrite pasa al Web Worker (spec v10 §3/§12).
-    let algebrite: string;
-    try {
-      algebrite = parseExpression(latex, angleMode).algebrite;
-    } catch (err) {
-      const appErr = err as { code?: ErrorCode; message?: string };
-      setResult({
-        success: false,
-        errorCode: appErr.code ?? ErrorCode.PARSE_ERROR,
-        errorMessage: appErr.message ?? "Expresión inválida.",
-        resultLatex: null,
-        steps: [],
-        hasDetailedSteps: false,
-        confidence: "SYMBOLIC",
-        requestId,
-      });
+      const worker = getWorker();
+      worker.onmessage = (e: MessageEvent<MathResult>) => {
+        setResult(e.data);
+        if (e.data.success) {
+          addHistoryEntry({ mode: "Científica", input: exprLatex, resultSummary: e.data.resultLatex ?? "" });
+        }
+      };
+      worker.postMessage({ type: "evaluate", requestId, expressionAlgebrite: algebrite });
+    },
+    [angleMode, getWorker],
+  );
+
+  const handleCalculate = useCallback(() => runExpression(latex), [latex, runExpression]);
+
+  // Íconos de resolución (spec §3.4). "Resolver ecuación" y "simplificar"
+  // reusan el mismo pipeline de evaluate() ya existente — Algebrite ya
+  // simplifica cualquier expresión, y ya resuelve ecuaciones con "="
+  // (equationSplit.ts). El ícono de sistema navega conceptualmente a
+  // LinearSystemsMode en vez de intentar resolverlo aquí — no se
+  // implementó una vista de sistema embebida en este modo todavía.
+  const handleSolveEquation = useCallback(() => {
+    if (!latex.includes("=")) {
+      mathField?.insert("=0");
       return;
     }
+    handleCalculate();
+  }, [latex, handleCalculate, mathField]);
 
-    const worker = getWorker();
-    worker.onmessage = (e: MessageEvent<MathResult>) => {
-      setResult(e.data);
-      if (e.data.success) {
-        addHistoryEntry({ mode: "Científica", input: latex, resultSummary: e.data.resultLatex ?? "" });
-      }
-    };
-    worker.postMessage({ type: "evaluate", requestId, expressionAlgebrite: algebrite });
-  }, [latex, angleMode, getWorker]);
+  const handleSimplify = useCallback(() => handleCalculate(), [handleCalculate]);
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
-      <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una expresión…" />
+      <div className="flex items-center justify-end">
+        <AngleModePopover angleMode={angleMode} onToggle={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))} />
+      </div>
+      <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una expresión…" fieldRef={setMathField} />
       <ResultPanel result={result} />
       <MathKeyboard
-        onInsert={handleInsert}
+        field={mathField}
         onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
-        onClear={() => {
-          setLatex("");
-          setResult(null);
-        }}
         onEnter={handleCalculate}
-        angleMode={angleMode}
-        onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+        onSolveEquation={handleSolveEquation}
+        onSimplify={handleSimplify}
       />
     </div>
   );

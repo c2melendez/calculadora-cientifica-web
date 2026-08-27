@@ -25,6 +25,11 @@ interface NaturalInputProps {
   value: string;
   onChange: (latex: string) => void;
   placeholder?: string;
+  /** Fase A: expone el elemento real de MathLive para que MathKeyboard use
+   * field.insert() con plantillas #? — igual que Precision Lab (Python).
+   * Antes el teclado insertaba con concatenación de texto ingenua; esto
+   * corrige eso de una vez ya que estamos reescribiendo el teclado. */
+  fieldRef?: (el: (HTMLElement & { value: string; insert: (s: string) => void; focus: () => void }) | null) => void;
 }
 
 export interface NaturalInputHandle {
@@ -32,8 +37,8 @@ export interface NaturalInputHandle {
   clear: () => void;
 }
 
-export function NaturalInput({ value, onChange, placeholder }: NaturalInputProps) {
-  const ref = useRef<HTMLElement & { value: string }>(null);
+export function NaturalInput({ value, onChange, placeholder, fieldRef }: NaturalInputProps) {
+  const ref = useRef<HTMLElement & { value: string; insert: (s: string) => void; focus: () => void }>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -52,7 +57,10 @@ export function NaturalInput({ value, onChange, placeholder }: NaturalInputProps
 
   return (
     <math-field
-      ref={ref as never}
+      ref={(el: (HTMLElement & { value: string; insert: (s: string) => void; focus: () => void }) | null) => {
+        (ref as React.MutableRefObject<typeof el>).current = el;
+        fieldRef?.(el);
+      }}
       className="w-full rounded-lg border border-paper-line bg-paper-soft px-4 py-3 text-2xl text-ink shadow-sm"
       style={
         {

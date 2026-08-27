@@ -14,6 +14,7 @@ export function AlgebraMode() {
   const [latex, setLatex] = useState("");
   const [result, setResult] = useState<MathResult | null>(null);
   const workerRef = useRef<Worker | null>(null);
+  const [mathField, setMathField] = useState<{ insert: (s: string) => void; focus: () => void } | null>(null);
 
   const getWorker = useCallback(() => {
     if (!workerRef.current) {
@@ -86,20 +87,13 @@ export function AlgebraMode() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
-      <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una ecuación, ej. 2x+3=7" />
+      <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una ecuación, ej. 2x+3=7" fieldRef={setMathField} />
       <ResultPanel result={result} />
       {result?.steps && result.steps.length > 0 && <StepList steps={result.steps} />}
       <MathKeyboard
-        onInsert={(t) => setLatex((prev) => prev + t)}
+        field={mathField}
         onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
-        onClear={() => {
-          setLatex("");
-          setResult(null);
-        }}
         onEnter={handleSolve}
-        angleMode="RAD"
-        onToggleAngleMode={() => {}}
-        showAngleToggle={false}
       />
     </div>
   );
