@@ -6,6 +6,11 @@ import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
 import { addHistoryEntry } from "../../store/historyDb";
 
+// FIX (auditoría Fase 0 v2): este componente usaba clases bg-accent/
+// accentSoft/bg-panel/text-slate-* que ya no existen en tailwind.config.js
+// desde la Fase 1 (mismo bug ya corregido en MatrixMode.tsx, este archivo
+// había quedado sin actualizar).
+
 // Modo 4 de la spec v10 §8 (Módulo 5). Soporta de 2 a 4 ecuaciones
 // (DEDUCIBLE, spec no fija un límite — se eligió por paridad con matrices
 // hasta 4x4). Cada ecuación se resuelve con el parser del Módulo 2 y se
@@ -102,7 +107,7 @@ export function LinearSystemsMode() {
             key={n}
             onClick={() => setCountAndResize(n)}
             className={`rounded-full px-3 py-1 ${
-              n === count ? "bg-accent text-white" : "bg-panel text-slate-300"
+              n === count ? "bg-marker text-chrome" : "bg-paper-soft text-muted"
             }`}
           >
             {n} ecuaciones
@@ -123,7 +128,7 @@ export function LinearSystemsMode() {
 
       <button
         onClick={handleSolve}
-        className="rounded-lg bg-accent py-2 text-lg font-semibold text-white hover:bg-accentSoft"
+        className="rounded-lg bg-graph py-2 text-lg font-semibold text-paper hover:bg-graph/90"
       >
         Resolver sistema
       </button>
