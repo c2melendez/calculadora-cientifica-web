@@ -6,6 +6,11 @@ import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
 import { addHistoryEntry } from "../../store/historyDb";
 
+// FIX (auditoría Fase 0 v2): este componente usaba clases bg-accent/
+// accentSoft/bg-panel/text-slate-* que ya no existen en tailwind.config.js
+// desde la Fase 1 (mismo bug ya corregido en MatrixMode.tsx, este archivo
+// había quedado sin actualizar).
+
 // Modo 3 de la spec v10 §7 (Módulo 4). A diferencia de los modos 1 y 2, los
 // parámetros auxiliares (punto del límite, orden de derivada, límites de
 // integración) se piden como campos numéricos simples, no como NaturalInput
@@ -136,7 +141,7 @@ export function CalculusMode() {
             key={op}
             onClick={() => setOperation(op)}
             className={`rounded-full px-3 py-1 ${
-              op === operation ? "bg-accent text-white" : "bg-panel text-slate-300"
+              op === operation ? "bg-marker text-chrome" : "bg-paper-soft text-muted"
             }`}
           >
             {OPERATION_LABELS[op]}
@@ -147,12 +152,12 @@ export function CalculusMode() {
       <NaturalInput value={latex} onChange={setLatex} placeholder="f(x), ej. sin(x)/x" />
 
       {operation === "derivative" && (
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-muted">
           Orden:
           <select
             value={order}
             onChange={(e) => setOrder(Number(e.target.value) as 1 | 2 | 3)}
-            className="rounded bg-panel px-2 py-1 text-slate-100"
+            className="rounded bg-paper-soft px-2 py-1 text-ink"
           >
             <option value={1}>1</option>
             <option value={2}>2</option>
@@ -162,25 +167,25 @@ export function CalculusMode() {
       )}
 
       {operation === "limit" && (
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-muted">
           x →
           <input
             value={point}
             onChange={(e) => setPoint(e.target.value)}
-            className="w-24 rounded bg-panel px-2 py-1 text-slate-100"
+            className="w-24 rounded bg-paper-soft px-2 py-1 text-ink"
             placeholder="0"
           />
         </label>
       )}
 
       {operation === "definiteIntegral" && (
-        <div className="flex items-center gap-2 text-sm text-slate-300">
+        <div className="flex items-center gap-2 text-sm text-muted">
           <label className="flex items-center gap-1">
             desde
             <input
               value={lower}
               onChange={(e) => setLower(e.target.value)}
-              className="w-16 rounded bg-panel px-2 py-1 text-slate-100"
+              className="w-16 rounded bg-paper-soft px-2 py-1 text-ink"
             />
           </label>
           <label className="flex items-center gap-1">
@@ -188,7 +193,7 @@ export function CalculusMode() {
             <input
               value={upper}
               onChange={(e) => setUpper(e.target.value)}
-              className="w-16 rounded bg-panel px-2 py-1 text-slate-100"
+              className="w-16 rounded bg-paper-soft px-2 py-1 text-ink"
             />
           </label>
         </div>
@@ -196,7 +201,7 @@ export function CalculusMode() {
 
       <button
         onClick={handleCompute}
-        className="rounded-lg bg-accent py-2 text-lg font-semibold text-white hover:bg-accentSoft"
+        className="rounded-lg bg-graph py-2 text-lg font-semibold text-paper hover:bg-graph/90"
       >
         Calcular
       </button>
