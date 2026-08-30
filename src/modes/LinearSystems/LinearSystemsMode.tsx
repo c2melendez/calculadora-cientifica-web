@@ -133,7 +133,9 @@ export function LinearSystemsMode() {
         Resolver sistema
       </button>
 
-      <ResultPanel result={result} />
+      <div className="rounded-xl bg-paper-soft px-4 py-3 shadow-inner shadow-black/10">
+        <ResultPanel result={result} />
+      </div>
       {result?.steps && result.steps.length > 0 && <StepList steps={result.steps} />}
     </div>
   );
