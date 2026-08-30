@@ -64,6 +64,17 @@ export function preprocessLatex(latex: string): string {
   expr = expr.replace(/\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g, "($2)^(1/($1))");
   expr = replaceBalanced(expr, "\\sqrt", (inner) => `sqrt(${inner})`);
 
+  // FIX (auditoría Fase 0 v2, Fase 10): \mathrm{nombre} es el macro que
+  // MathLive usa para "texto no cursivo" — el teclado Fase A lo usa para
+  // TODOS los nombres de función multi-letra del menú Alg/Stat (mod, GCD,
+  // LCM, nCr, nPr, mean, median, mode, min, max, range, stdev, var, sort,
+  // mad). Nunca se manejó aquí: antes de este fix, cualquiera de esas
+  // teclas producía "Carácter no reconocido" en cuanto el usuario
+  // presionaba "=" — un error de PARSEO, no solo "sin evaluar" (Algebrite
+  // nunca llegaba a verlas). Se desenvuelve de forma balanceada, igual que
+  // \sqrt, porque el nombre podría en teoría contener otros macros.
+  expr = replaceBalanced(expr, "\\mathrm", (inner) => inner);
+
   expr = expr
     .replace(/\\left\|/g, "abs(")
     .replace(/\\right\|/g, ")")
@@ -71,6 +82,12 @@ export function preprocessLatex(latex: string): string {
     .replace(/\\times/g, "*")
     .replace(/\\div/g, "/")
     .replace(/\\pi/g, "pi")
+    // FIX (auditoría Fase 0 v2, Fase 10): mismo bug que \mathrm arriba —
+    // \gcd/\min/\max son macros LaTeX nativos (no \mathrm{...}) que
+    // tampoco se manejaban, con el mismo efecto (error de parseo).
+    .replace(/\\gcd/g, "gcd")
+    .replace(/\\min/g, "min")
+    .replace(/\\max/g, "max")
     .replace(/\\sin\^\{-1\}/g, "arcsin")
     .replace(/\\cos\^\{-1\}/g, "arccos")
     .replace(/\\tan\^\{-1\}/g, "arctan")
