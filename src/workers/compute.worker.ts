@@ -7,8 +7,8 @@
 
 import { evaluate, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
 import { toFractionResult } from "../engine/fractions";
-import { compileNumeric } from "../engine/numericFallback";
-import { tryStatFunction } from "../engine/statFunctions";
+import { compileNumeric, numericLimit } from "../engine/numericFallback";
+import { tryStatFunction, splitTopLevelArgs } from "../engine/statFunctions";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
 import {
   calcDerivative,
@@ -158,6 +158,33 @@ function handleSolveAlgebra(
  */
 const ALGEBRITE_UNSUPPORTED_NUMERIC = /\b(asinh|acosh|atanh|sign)\(/;
 
+/**
+ * Fase 10 (decisión: resolver Lim inline en Básica/Científica/Álgebra):
+ * limit() de Algebrite frecuentemente devuelve la llamada tal cual, sin
+ * evaluar (confirmado probando el paquete real — mismo comportamiento que
+ * ya maneja symbolicLimit()/calcLimit() en el modo Cálculo). Cuando eso
+ * pasa aquí, se recurre al mismo fallback numérico que usa Cálculo
+ * (compileNumeric + numericLimit), reconstruyendo cuerpo/variable/punto a
+ * partir de la propia llamada sin evaluar.
+ */
+function tryLimitFallback(raw: string): string | null {
+  const match = raw.match(/^limit\((.*)\)$/s);
+  if (!match) return null;
+  const args = splitTopLevelArgs(match[1]);
+  if (args.length !== 3) return null;
+  const [body, variable, pointExpr] = args;
+  try {
+    const pointRaw = evaluate(pointExpr);
+    const pointNumeric = Number(pointRaw);
+    if (!Number.isFinite(pointNumeric)) return null;
+    const fn = compileNumeric(body, variable);
+    const { value, converged } = numericLimit(fn, pointNumeric);
+    return Number.isFinite(value) && converged ? String(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 function tryNumericFallback(expr: string): string | null {
   try {
     // Expresión puramente numérica (sin variable libre real que resolver
@@ -192,6 +219,13 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
 
     let raw = evaluate(expr);
     let confidence: MathResult["confidence"] = "SYMBOLIC";
+    if (/^limit\(/.test(raw)) {
+      const limitFallback = tryLimitFallback(raw);
+      if (limitFallback !== null) {
+        raw = limitFallback;
+        confidence = "NUMERIC_FALLBACK";
+      }
+    }
     if (ALGEBRITE_UNSUPPORTED_NUMERIC.test(raw)) {
       const numeric = tryNumericFallback(expr);
       if (numeric !== null) {
