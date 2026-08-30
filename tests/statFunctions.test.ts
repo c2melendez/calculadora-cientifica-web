@@ -116,4 +116,19 @@ describe("Fase 10 — ∫/Lim/Σ inline (decisión: resolver en Básica/Científ
   it("\\infty se traduce a oo (Algebrite)", () => {
     expect(parseExpression("\\infty").algebrite).toBe("oo");
   });
+
+  it('"d/dx" (\\frac{d}{dx}\\left(...\\right)) se reescribe a d((...),x) y evalúa la derivada real', () => {
+    const parsed = parseExpression("\\frac{d}{dx}\\left(x^2\\right)");
+    expect(parsed.algebrite).toBe("d((x^2),x)");
+  });
+
+  it('"d/dx" no se ancla al final — puede seguir con más expresión', () => {
+    expect(parseExpression("\\frac{d}{dx}\\left(x^2\\right)+1").algebrite).toBe("d((x^2),x)+1");
+  });
+
+  it('"d/dx" con un cuerpo que tiene sus propios paréntesis anidados (ej. sin(x)) encuentra el paréntesis correcto', () => {
+    expect(parseExpression("\\frac{d}{dx}\\left(\\sin\\left(x\\right)\\right)").algebrite).toBe(
+      "d((sin(x)),x)",
+    );
+  });
 });
