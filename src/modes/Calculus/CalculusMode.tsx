@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { NaturalInput } from "../../components/NaturalInput";
-import { ResultPanel } from "../../components/ResultPanel";
+import { Screen } from "../../components/Screen";
+import { type SessionHistoryEntry } from "../../components/HistoryLog";
 import { StepList } from "../../components/StepList";
 import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
@@ -11,11 +11,14 @@ import { addHistoryEntry } from "../../store/historyDb";
 // desde la Fase 1 (mismo bug ya corregido en MatrixMode.tsx, este archivo
 // había quedado sin actualizar).
 
-// Modo 3 de la spec v10 §7 (Módulo 4). A diferencia de los modos 1 y 2, los
-// parámetros auxiliares (punto del límite, orden de derivada, límites de
-// integración) se piden como campos numéricos simples, no como NaturalInput
-// — TODO declarado: llevarlos a input natural en un módulo posterior si se
-// necesita, por ejemplo, límites en infinito escritos como "\infty".
+// Fase E (migración del patrón de pantalla unificada, pendiente de la
+// fase anterior): NaturalInput+ResultPanel sueltos -> Screen, igual que en
+// BasicScientificMode. Este modo no tenía angleMode (siempre RAD implícito
+// vía el default de parseExpression) ni historial de sesión — se agregaron
+// ambos aquí para que la pantalla compartida sea real, no un toggle
+// decorativo que no hiciera nada.
+
+type MathFieldRef = { insert: (s: string) => void; focus: () => void; value: string } | null;
 
 type Operation = "limit" | "derivative" | "indefiniteIntegral" | "definiteIntegral";
 
@@ -34,6 +37,9 @@ export function CalculusMode() {
   const [lower, setLower] = useState("0");
   const [upper, setUpper] = useState("1");
   const [result, setResult] = useState<MathResult | null>(null);
+  const [angleMode, setAngleMode] = useState<"RAD" | "GRAD">("RAD");
+  const [, setMathField] = useState<MathFieldRef>(null);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryEntry[]>([]);
   const workerRef = useRef<Worker | null>(null);
 
   const getWorker = useCallback(() => {
@@ -63,7 +69,7 @@ export function CalculusMode() {
     const requestId = makeRequestId();
     let parsed;
     try {
-      parsed = parseExpression(latex);
+      parsed = parseExpression(latex, angleMode);
     } catch (err) {
       const appErr = err as { code?: ErrorCode; message?: string };
       fail(appErr.code ?? ErrorCode.PARSE_ERROR, appErr.message ?? "Expresión inválida.", requestId);
@@ -83,6 +89,7 @@ export function CalculusMode() {
       setResult(e.data);
       if (e.data.success) {
         addHistoryEntry({ mode: `Cálculo (${operation})`, input: latex, resultSummary: e.data.resultLatex ?? "" });
+        setSessionHistory((prev) => [...prev, { id: e.data.requestId, input: latex, result: e.data }]);
       }
     };
 
@@ -131,7 +138,7 @@ export function CalculusMode() {
         upper: upperNumeric,
       });
     }
-  }, [latex, operation, order, point, lower, upper, getWorker, fail]);
+  }, [latex, operation, order, point, lower, upper, angleMode, getWorker, fail]);
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
@@ -149,7 +156,16 @@ export function CalculusMode() {
         ))}
       </div>
 
-      <NaturalInput value={latex} onChange={setLatex} placeholder="f(x), ej. sin(x)/x" />
+      <Screen
+        latex={latex}
+        onChangeLatex={setLatex}
+        placeholder="f(x), ej. sin(x)/x"
+        fieldRef={setMathField}
+        result={result}
+        sessionHistory={sessionHistory}
+        angleMode={angleMode}
+        onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+      />
 
       {operation === "derivative" && (
         <label className="flex items-center gap-2 text-sm text-muted">
@@ -206,7 +222,6 @@ export function CalculusMode() {
         Calcular
       </button>
 
-      <ResultPanel result={result} />
       {result?.steps && result.steps.length > 0 && <StepList steps={result.steps} />}
     </div>
   );
