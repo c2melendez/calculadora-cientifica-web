@@ -7,10 +7,19 @@ import { useState } from "react";
 interface AngleModePopoverProps {
   angleMode: "RAD" | "GRAD";
   onToggle: () => void;
+  /** Fase E: 'chrome' (default, look original) para cuando vive en el
+   * header oscuro; 'paper' para cuando vive dentro de la pantalla clara
+   * de Screen.tsx (mockup estilo ClassCalc) — mismo componente, distinto
+   * contraste de fondo. */
+  variant?: "chrome" | "paper";
 }
 
-export function AngleModePopover({ angleMode, onToggle }: AngleModePopoverProps) {
+export function AngleModePopover({ angleMode, onToggle, variant = "chrome" }: AngleModePopoverProps) {
   const [open, setOpen] = useState(false);
+  const triggerClass =
+    variant === "paper"
+      ? "rounded-md bg-marker-soft px-2 py-1 text-[10px] font-semibold text-marker-text hover:bg-marker-soft/70"
+      : "rounded-md bg-chrome-soft px-2 py-1.5 text-[10px] font-semibold text-bone hover:bg-chrome-soft/70";
 
   return (
     <div className="relative">
@@ -18,7 +27,7 @@ export function AngleModePopover({ angleMode, onToggle }: AngleModePopoverProps)
         onClick={() => setOpen((o) => !o)}
         aria-label={`Modo de ángulo: ${angleMode}. Abrir ajustes.`}
         aria-expanded={open}
-        className="rounded-md bg-chrome-soft px-2 py-1.5 text-[10px] font-semibold text-bone hover:bg-chrome-soft/70"
+        className={triggerClass}
       >
         {angleMode}
       </button>
