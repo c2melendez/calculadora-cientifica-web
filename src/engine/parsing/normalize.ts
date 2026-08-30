@@ -46,6 +46,46 @@ function replaceBalanced(
 export function preprocessLatex(latex: string): string {
   let expr = latex;
 
+  // d/dx: plantilla "\frac{d}{dx}\left(#0\right)" -> d((cuerpo),x), nativo
+  // en Algebrite. Debe ir ANTES que el bucle \frac de abajo — si no, ese
+  // bucle ya convirtió "\frac{d}{dx}" a "(d)/(dx)" antes de llegar aquí,
+  // y el patrón deja de ser reconocible. A diferencia de ∫/Σ/Lim, esta
+  // SÍ puede aparecer en medio de una expresión más grande (ej.
+  // "\frac{d}{dx}\left(x^2\right)+1"), así que no se ancla al final del
+  // string — se busca el paréntesis \left(...\right) que le corresponde
+  // contando anidamiento, igual que replaceBalanced pero para \left(/
+  // \right) en vez de llaves.
+  //
+  // Hallazgo (auditoría Fase 0 v2, decisión de Carlos: resolver inline):
+  // antes de este fix, esta tecla no truena como ∫/Σ/Lim — es peor: dado
+  // que "d" y "dx" quedaban como símbolos sueltos, el motor SÍ devolvía
+  // un resultado, pero matemáticamente incorrecto y sin ningún error que
+  // lo señalara (ej. d/dx(x^2) daba "d*x^2/dx" en vez de "2x").
+  {
+    const marker = "\\frac{d}{dx}\\left(";
+    const idx = expr.indexOf(marker);
+    if (idx !== -1) {
+      let depth = 1;
+      let j = idx + marker.length;
+      while (j < expr.length && depth > 0) {
+        if (expr.startsWith("\\left(", j)) {
+          depth++;
+          j += 6;
+        } else if (expr.startsWith("\\right)", j)) {
+          depth--;
+          j += 7;
+        } else {
+          j++;
+        }
+      }
+      if (depth !== 0) {
+        throw parseError('Paréntesis sin balancear tras "d/dx".');
+      }
+      const body = expr.slice(idx + marker.length, j - 7);
+      expr = `${expr.slice(0, idx)}d((${body}),x)${expr.slice(j)}`;
+    }
+  }
+
   // \frac{a}{b} -> ((a)/(b)) — debe ir antes que otros reemplazos porque
   // "a" y "b" pueden contener a su vez otros macros ya procesados de forma
   // recursiva al reprocesar el string completo tras cada pasada balanceada.
