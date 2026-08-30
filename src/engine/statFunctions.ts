@@ -37,7 +37,7 @@ function isStatFunctionName(name: string): name is StatFunctionName {
   return (STAT_FUNCTION_NAMES as readonly string[]).includes(name);
 }
 
-function splitTopLevelArgs(argsStr: string): string[] {
+export function splitTopLevelArgs(argsStr: string): string[] {
   const args: string[] = [];
   let depth = 0;
   let current = "";
