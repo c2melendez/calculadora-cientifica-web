@@ -5,7 +5,7 @@
 // Módulo 1: "evaluate" (Modo 1). Módulo 3: "solveAlgebra" (Modo 2 - Álgebra).
 // Los demás tipos de operación se añaden en módulos posteriores.
 
-import { evaluate, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
+import { evaluate, toLatex, toDecimalApprox, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
 import { toFractionResult } from "../engine/fractions";
 import { compileNumeric, numericLimit } from "../engine/numericFallback";
 import { tryStatFunction, splitTopLevelArgs } from "../engine/statFunctions";
@@ -129,9 +129,13 @@ function handleSolveAlgebra(
     const allNumeric = solutionsAlgebrite.every(
       (s) => /^-?\d+(\.\d+)?$/.test(s) || /^-?\d+\/\d+$/.test(s),
     );
+    // Fase E: mismo fix de handleEvaluate — cada solución se convierte a
+    // LaTeX real antes de unirlas, en vez de concatenar sintaxis nativa
+    // de Algebrite con un "=" de por medio.
+    const resultLatex = solutionsAlgebrite.map((s) => `${variable} = ${toLatex(s)}`).join(",\\ ");
     return {
       success: true,
-      resultLatex: solutionsAlgebrite.map((s) => `${variable} = ${s}`).join(", "),
+      resultLatex,
       fraction: allNumeric && solutionsAlgebrite.length === 1 ? toFractionResult(solutionsAlgebrite[0]) : undefined,
       steps,
       hasDetailedSteps: false, // ver stepEngine/algebra.ts: pasos de alto nivel, no aislamiento término a término
@@ -208,7 +212,14 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
       const isNumericStat = /^-?\d+(\.\d+)?$/.test(statResult);
       return {
         success: true,
-        resultLatex: statResult,
+        // Fase E: los números planos (mean/median/etc.) ya son LaTeX
+        // válido tal cual — pasarlos por toLatex() los trunca a 6 cifras
+        // (Algebrite reformatea con su propio float(), con menos
+        // precisión que formatNumber() en statFunctions.ts). El único
+        // caso que sí lo necesita es "sort" (una lista, ej. "[1,2,3]"),
+        // que toLatex() sí convierte a una notación matemática real
+        // (bmatrix) en vez del texto plano con corchetes.
+        resultLatex: isNumericStat ? statResult : toLatex(statResult),
         fraction: isNumericStat ? toFractionResult(statResult) : undefined,
         steps: [],
         hasDetailedSteps: false,
@@ -234,10 +245,27 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
       }
     }
     const isNumeric = /^-?\d+(\.\d+)?$/.test(raw) || /^-?\d+\/\d+$/.test(raw);
+    const fraction = isNumeric ? toFractionResult(raw) : undefined;
+
+    // Fase E (fix display): "raw" es la sintaxis nativa de Algebrite, no
+    // LaTeX — se convierte acá, en el único punto de salida de
+    // handleEvaluate, para que HistoryLog/ResultPanel siempre reciban
+    // LaTeX válido y puedan renderizarlo con MathLive en vez de mostrarlo
+    // como texto plano (bug detectado por comparación visual con
+    // ClassCalc — ver algebriteClient.ts para el detalle).
+    const resultLatex = toLatex(raw);
+
+    // Si no hay `fraction` (resultado simbólico, ej. sin(pi/4) ->
+    // "2^(1/2)/2"), se intenta igual una aproximación decimal vía
+    // float() para que la pestaña "dec" de ResultPanel no quede
+    // mostrando el mismo string simbólico que "sqrt".
+    const decimalApprox = !fraction ? (toDecimalApprox(raw) ?? undefined) : undefined;
+
     return {
       success: true,
-      resultLatex: raw,
-      fraction: isNumeric ? toFractionResult(raw) : undefined,
+      resultLatex,
+      fraction,
+      decimalApprox,
       steps: [],
       hasDetailedSteps: false,
       confidence,
