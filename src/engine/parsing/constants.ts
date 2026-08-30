@@ -100,6 +100,7 @@ export const FUNCTION_ARITY: Record<string, number[]> = {
   integral: [2],
   sum: [4],
   limit: [3],
+  d: [2],
 };
 
 export const KNOWN_FUNCTION_NAMES = Object.keys(FUNCTION_ARITY);
