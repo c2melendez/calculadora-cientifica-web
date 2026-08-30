@@ -65,6 +65,32 @@ export const FUNCTION_ARITY: Record<string, number[]> = {
   factorial: [1],
   nPr: [2],
   nCr: [2],
+  // Fase 10 / auditoría Fase 0 v2: registradas aquí para que el tokenizer
+  // las reconozca como "function" (ver tokenize.ts) en vez de tratarlas
+  // como identificador + multiplicación implícita (ej. "mean(1,2,3)" se
+  // convertía en "mean*(1,2,3)"). mod/gcd/lcm SÍ son nativas de Algebrite
+  // (confirmado probando el paquete real) — arity fija 2, sin fallback
+  // propio. mean/median/mode/min/max/range/stdev/variance/sort/mad NO son
+  // nativas (confirmado igual) y se resuelven en engine/statFunctions.ts;
+  // aceptan de 1 a 20 argumentos (límite razonable, no especificado antes).
+  mod: [2],
+  gcd: [2],
+  lcm: [2],
+  ...Object.fromEntries(
+    ["mean", "median", "mode", "min", "max", "range", "sort", "mad"].map((name) => [
+      name,
+      Array.from({ length: 20 }, (_, i) => i + 1),
+    ]),
+  ),
+  // stdev/variance necesitan al menos 2 valores (no tiene sentido una
+  // desviación estándar de un solo dato) — ver engine/statFunctions.ts.
+  // NOTA: la tecla del teclado etiquetada "variance" en realidad inserta
+  // el macro \mathrm{var} (MathKeyboard.tsx), no \mathrm{variance} — el
+  // identificador real que llega aquí es "var". Se registran ambos
+  // nombres por si se escribe "variance" a mano.
+  stdev: Array.from({ length: 19 }, (_, i) => i + 2),
+  var: Array.from({ length: 19 }, (_, i) => i + 2),
+  variance: Array.from({ length: 19 }, (_, i) => i + 2),
 };
 
 export const KNOWN_FUNCTION_NAMES = Object.keys(FUNCTION_ARITY);
