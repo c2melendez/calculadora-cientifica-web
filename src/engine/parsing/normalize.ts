@@ -75,6 +75,58 @@ export function preprocessLatex(latex: string): string {
   // \sqrt, porque el nombre podría en teoría contener otros macros.
   expr = replaceBalanced(expr, "\\mathrm", (inner) => inner);
 
+  // FIX (auditoría Fase 0 v2 → decisión de Carlos: resolver ∫/Lim/Σ
+  // inline en vez de navegar a Cálculo): \int/\lim/\sum tampoco los
+  // manejaba preprocessLatex — mismo efecto que \mathrm arriba, error de
+  // parseo apenas se presiona "=". Estas 3 teclas están pensadas para ser
+  // la expresión COMPLETA (mismo alcance que las funciones de
+  // estadística), así que el cuerpo se toma como "el resto del string" —
+  // no se soporta anidarlas dentro de algo más grande.
+  //
+  // ∫: plantilla fija "\int #0\,dx" (siempre respecto a x, sin variable
+  // configurable) -> integral((cuerpo),x), nativo en Algebrite.
+  {
+    const intMatch = expr.match(/\\int(.*)\\,dx$/s);
+    if (intMatch) {
+      expr = `integral((${intMatch[1]}),x)`;
+    }
+  }
+
+  // Σ: plantilla "\sum_{#0}^{#1}#2", #0 tipo "i=1" -> sum((cuerpo),i,1,#1),
+  // nativo en Algebrite.
+  {
+    const sumMatch = expr.match(/\\sum_\{([^{}]*)\}\^\{([^{}]*)\}(.*)$/s);
+    if (sumMatch) {
+      const [, varStart, end, body] = sumMatch;
+      const eqIndex = varStart.indexOf("=");
+      if (eqIndex === -1) {
+        throw parseError('Σ espera la forma "variable=inicio" (ej. i=1) en el límite inferior.');
+      }
+      const sumVar = varStart.slice(0, eqIndex);
+      const start = varStart.slice(eqIndex + 1);
+      expr = `sum((${body}),${sumVar},${start},${end})`;
+    }
+  }
+
+  // Lim: plantilla "\lim_{#0}#1", #0 tipo "x\to0" -> limit((cuerpo),x,0).
+  // A diferencia de integral/sum, limit() de Algebrite frecuentemente NO
+  // evalúa (confirmado probando el paquete real) — el fallback numérico
+  // para ese caso vive en compute.worker.ts (tryLimitFallback), reusando
+  // el mismo evaluador numérico propio de Fase 3/Módulo de límites.
+  {
+    const limMatch = expr.match(/\\lim_\{([^{}]*)\}(.*)$/s);
+    if (limMatch) {
+      const [, varTo, body] = limMatch;
+      const toIndex = varTo.indexOf("\\to");
+      if (toIndex === -1) {
+        throw parseError('Lim espera la forma "variable\\to punto" (ej. x\\to0) en el subíndice.');
+      }
+      const limVar = varTo.slice(0, toIndex);
+      const point = varTo.slice(toIndex + "\\to".length);
+      expr = `limit((${body}),${limVar},${point})`;
+    }
+  }
+
   expr = expr
     .replace(/\\left\|/g, "abs(")
     .replace(/\\right\|/g, ")")
@@ -82,6 +134,7 @@ export function preprocessLatex(latex: string): string {
     .replace(/\\times/g, "*")
     .replace(/\\div/g, "/")
     .replace(/\\pi/g, "pi")
+    .replace(/\\infty/g, "oo")
     // FIX (auditoría Fase 0 v2, Fase 10): mismo bug que \mathrm arriba —
     // \gcd/\min/\max son macros LaTeX nativos (no \mathrm{...}) que
     // tampoco se manejaban, con el mismo efecto (error de parseo).
