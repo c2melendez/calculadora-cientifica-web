@@ -1,9 +1,7 @@
 import { useCallback, useRef, useState } from "react";
-import { NaturalInput } from "../../components/NaturalInput";
 import { MathKeyboard } from "../../components/MathKeyboard";
-import { ResultPanel } from "../../components/ResultPanel";
-import { AngleModePopover } from "../../components/AngleModePopover";
-import { HistoryLog, type SessionHistoryEntry } from "../../components/HistoryLog";
+import { Screen } from "../../components/Screen";
+import { type SessionHistoryEntry } from "../../components/HistoryLog";
 import { makeRequestId, ErrorCode, type MathResult } from "../../types";
 import { parseExpression } from "../../engine/parsing";
 import { addHistoryEntry } from "../../store/historyDb";
@@ -98,12 +96,16 @@ export function BasicScientificMode() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
-      <div className="flex items-center justify-end">
-        <AngleModePopover angleMode={angleMode} onToggle={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))} />
-      </div>
-      <HistoryLog entries={sessionHistory} />
-      <NaturalInput value={latex} onChange={setLatex} placeholder="Escribe una expresión…" fieldRef={setMathField} />
-      <ResultPanel result={result} />
+      <Screen
+        latex={latex}
+        onChangeLatex={setLatex}
+        placeholder="Escribe una expresión…"
+        fieldRef={setMathField}
+        result={result}
+        sessionHistory={sessionHistory}
+        angleMode={angleMode}
+        onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+      />
       <MathKeyboard
         field={mathField}
         onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
