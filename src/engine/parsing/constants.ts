@@ -91,6 +91,15 @@ export const FUNCTION_ARITY: Record<string, number[]> = {
   stdev: Array.from({ length: 19 }, (_, i) => i + 2),
   var: Array.from({ length: 19 }, (_, i) => i + 2),
   variance: Array.from({ length: 19 }, (_, i) => i + 2),
+  // Fase 10 (decisión: resolver ∫/Lim/Σ inline) — producidas únicamente
+  // por la reescritura de normalize.ts (\int/\lim/\sum), nunca tecleadas
+  // directamente por el usuario, pero deben registrarse igual para que el
+  // tokenizer las reconozca como función (si no, "integral(" se vuelve
+  // "integral*(" por el mismo bug de multiplicación implícita que mean/
+  // median/etc — ver constants.ts arriba).
+  integral: [2],
+  sum: [4],
+  limit: [3],
 };
 
 export const KNOWN_FUNCTION_NAMES = Object.keys(FUNCTION_ARITY);
