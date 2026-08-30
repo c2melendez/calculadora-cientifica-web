@@ -30,6 +30,12 @@ interface NaturalInputProps {
    * Antes el teclado insertaba con concatenación de texto ingenua; esto
    * corrige eso de una vez ya que estamos reescribiendo el teclado. */
   fieldRef?: (el: (HTMLElement & { value: string; insert: (s: string) => void; focus: () => void }) | null) => void;
+  /** Fase E: 'bare' (default false) quita fondo/borde/sombra propios para
+   * cuando el campo vive anidado dentro de Screen.tsx, que ya provee el
+   * contenedor "pantalla" único (spec UX estilo ClassCalc, mockup). El
+   * uso standalone original (con su propia tarjeta) se conserva si algún
+   * modo todavía no migró a Screen. */
+  bare?: boolean;
 }
 
 export interface NaturalInputHandle {
@@ -37,7 +43,7 @@ export interface NaturalInputHandle {
   clear: () => void;
 }
 
-export function NaturalInput({ value, onChange, placeholder, fieldRef }: NaturalInputProps) {
+export function NaturalInput({ value, onChange, placeholder, fieldRef, bare = false }: NaturalInputProps) {
   const ref = useRef<HTMLElement & { value: string; insert: (s: string) => void; focus: () => void }>(null);
 
   useEffect(() => {
@@ -61,7 +67,11 @@ export function NaturalInput({ value, onChange, placeholder, fieldRef }: Natural
         (ref as React.MutableRefObject<typeof el>).current = el;
         fieldRef?.(el);
       }}
-      className="w-full rounded-lg border border-paper-line bg-paper-soft px-4 py-3 text-2xl text-ink shadow-sm"
+      className={
+        bare
+          ? "w-full bg-transparent px-0 py-1 text-right text-2xl text-ink"
+          : "w-full rounded-lg border border-paper-line bg-paper-soft px-4 py-3 text-2xl text-ink shadow-sm"
+      }
       style={
         {
           "--caret-color": "#E8A33D",
