@@ -86,3 +86,34 @@ describe("Fase 10 — tryStatFunction (evaluación numérica real)", () => {
     expect(tryStatFunction("sin(1)")).toBeNull();
   });
 });
+
+describe("Fase 10 — ∫/Lim/Σ inline (decisión: resolver en Básica/Científica/Álgebra, no navegar a Cálculo)", () => {
+  it("\\int x^2\\,dx se reescribe a integral((x^2),x) y evalúa 1/3*x^3", () => {
+    const parsed = parseExpression("\\int x^2\\,dx");
+    expect(parsed.algebrite).toBe("integral((x^2),x)");
+  });
+
+  it("\\sum_{i=1}^{5}i se reescribe a sum((i),i,1,5)", () => {
+    expect(parseExpression("\\sum_{i=1}^{5}i").algebrite).toBe("sum((i),i,1,5)");
+  });
+
+  it("\\lim_{x\\to0}... se reescribe a limit((...),x,0)", () => {
+    expect(parseExpression("\\lim_{x\\to0}x").algebrite).toBe("limit((x),x,0)");
+  });
+
+  it("Σ sin la forma variable=inicio en el límite inferior es PARSE_ERROR", () => {
+    expect(() => parseExpression("\\sum_{i}^{5}i")).toThrowError(
+      expect.objectContaining({ code: ErrorCode.PARSE_ERROR }),
+    );
+  });
+
+  it("Lim sin \\to en el subíndice es PARSE_ERROR", () => {
+    expect(() => parseExpression("\\lim_{x}x")).toThrowError(
+      expect.objectContaining({ code: ErrorCode.PARSE_ERROR }),
+    );
+  });
+
+  it("\\infty se traduce a oo (Algebrite)", () => {
+    expect(parseExpression("\\infty").algebrite).toBe("oo");
+  });
+});
