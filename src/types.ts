@@ -42,6 +42,10 @@ export interface MathResult {
   errorMessage?: string;
   resultLatex: string | null;
   fraction?: FractionResult;
+  /** Fase E: aproximación decimal (float) cuando el resultado es simbólico
+   * y por eso no tiene `fraction` — ej. sin(pi/4). Solo la llena
+   * handleEvaluate() en compute.worker.ts por ahora. */
+  decimalApprox?: string;
   steps: Step[];
   hasDetailedSteps: boolean;
   confidence: ResultConfidence;
