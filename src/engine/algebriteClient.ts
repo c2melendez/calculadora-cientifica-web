@@ -120,4 +120,63 @@ export function symbolicLimit(expressionAlgebrite: string, variable: string, poi
   }
 }
 
+/**
+ * Fase E (fix display, detectado por comparación visual con ClassCalc):
+ * TODAS las funciones de arriba devuelven la sintaxis nativa de impresión
+ * de Algebrite (ej. "7^(1/2)", "1/2*2^(1/2)") — NUNCA LaTeX real, pese a
+ * que en todo el proyecto ese string se asigna al campo `resultLatex`.
+ * Algebrite sí trae su propio conversor a LaTeX vía el comando interno
+ * `printlatex()` (confirmado contra el paquete real y la documentación de
+ * la librería). Se envuelve el resultado ya evaluado en `quote(...)` para
+ * que printlatex lo formatee sin volver a simplificarlo/reevaluarlo.
+ *
+ * Esta función es el único punto donde se hace esa conversión — los
+ * llamadores (compute.worker.ts) deben pasar por acá antes de escribir
+ * `resultLatex` en un MathResult. Si la conversión falla por cualquier
+ * motivo, se devuelve el string original de Algebrite como fallback: es
+ * mejor mostrar la sintaxis nativa que un campo vacío.
+ */
+export function toLatex(algebriteResult: string): string {
+  try {
+    const latex: string = Algebrite.run(`printlatex(quote(${algebriteResult}))`);
+    if (typeof latex !== "string" || latex.length === 0 || /stop|Stop/.test(latex)) {
+      return algebriteResult;
+    }
+    return latex;
+  } catch {
+    return algebriteResult;
+  }
+}
+
+/**
+ * Fase E: aproximación decimal forzada de un resultado ya evaluado, para
+ * cuando NO matchea el regex de "número puro" de compute.worker.ts (ej.
+ * sin(pi/4) evalúa a "2^(1/2)/2", que es simbólico, no un número/fracción
+ * literal) — sin esto, la pestaña "dec" de ResultPanel repetía el mismo
+ * string simbólico que "sqrt" en vez de mostrar 0.7071. Devuelve null si
+ * Algebrite no puede reducirlo a float (ej. contiene variables libres).
+ */
+export function toDecimalApprox(algebriteResult: string): string | null {
+  try {
+    const floated: string = Algebrite.run(`float(${algebriteResult})`);
+    if (typeof floated !== "string" || floated.length === 0 || /stop|Stop/.test(floated)) {
+      return null;
+    }
+    // Verificado contra el paquete real: float() trunca decimales
+    // periódicos con "..." literal al final (ej. "0.707107..." para
+    // sin(pi/4)) — el mismo caso que fractions.ts ya maneja para
+    // Fraction.js, pero con notación distinta ("..." vs "…"). Se
+    // normaliza acá a la misma elipsis unicode que usa fractions.ts, para
+    // que ResultPanel no tenga que distinguir el origen del decimal.
+    const normalized = floated.replace(/\.\.\.$/, "…");
+    // Si float() no pudo reducir nada (ej. queda una variable libre 'x'),
+    // Algebrite devuelve la expresión sin cambios — en ese caso no hay
+    // aproximación real que mostrar.
+    if (!/^-?\d+(\.\d+)?(…)?([eE][-+]?\d+)?$/.test(normalized)) return null;
+    return normalized;
+  } catch {
+    return null;
+  }
+}
+
 export { ErrorCode };
