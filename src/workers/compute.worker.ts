@@ -8,6 +8,7 @@
 import { evaluate, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
 import { toFractionResult } from "../engine/fractions";
 import { compileNumeric } from "../engine/numericFallback";
+import { tryStatFunction } from "../engine/statFunctions";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
 import {
   calcDerivative,
@@ -172,6 +173,23 @@ function tryNumericFallback(expr: string): string | null {
 
 function handleEvaluate(expr: string, requestId: string): MathResult {
   try {
+    // Fase 10: mean/median/mode/stdev/variance/sort/mad/min/max no son
+    // nativas de Algebrite (confirmado, ver statFunctions.ts) — se
+    // resuelven aparte, antes de intentar el camino normal.
+    const statResult = tryStatFunction(expr);
+    if (statResult !== null) {
+      const isNumericStat = /^-?\d+(\.\d+)?$/.test(statResult);
+      return {
+        success: true,
+        resultLatex: statResult,
+        fraction: isNumericStat ? toFractionResult(statResult) : undefined,
+        steps: [],
+        hasDetailedSteps: false,
+        confidence: "NUMERIC_FALLBACK",
+        requestId,
+      };
+    }
+
     let raw = evaluate(expr);
     let confidence: MathResult["confidence"] = "SYMBOLIC";
     if (ALGEBRITE_UNSUPPORTED_NUMERIC.test(raw)) {
