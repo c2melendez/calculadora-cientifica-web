@@ -37,7 +37,17 @@ function extractRow(equationAlgebrite: string, variables: string[]): { coeffs: s
 
   let substituted = equationAlgebrite;
   for (const v of variables) {
-    substituted = `subst(${v},0,${substituted})`;
+    // Fase 1 (fusión de modos): bug preexistente confirmado contra el
+    // paquete real de Algebrite — subst() toma (nuevo_valor,
+    // variable_vieja, expr), NO (variable_vieja, valor, expr). El orden
+    // invertido hacía que la sustitución nunca reemplazara nada, dejando
+    // "constant" con variables libres sin evaluar (ej. "5-2*x-y" en vez
+    // de un número), lo que rompía toFractionMatrix() para CUALQUIER
+    // sistema — no solo casos límite. Este bug ya causaba que
+    // tests/linearSystem.test.ts fallara antes de esta fase; ahora que
+    // el router de la pantalla única también depende de esta función, se
+    // corrige acá en vez de dejarlo pendiente.
+    substituted = `subst(0,${v},${substituted})`;
   }
   const constant = evaluate(substituted);
 
