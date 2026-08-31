@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { compileNumeric, simpsonIntegral, numericLimit } from "../src/engine/numericFallback";
+import { calcDefiniteIntegral } from "../src/engine/stepEngine/calculus";
 
 // NO EJECUTADO en el entorno de generación. Correr con `npm run test`.
 
@@ -33,5 +34,30 @@ describe("numericLimit", () => {
     const { value, converged } = numericLimit(f, 0);
     expect(converged).toBe(true);
     expect(value).toBeCloseTo(1, 2);
+  });
+});
+
+// Fase 2 externa (hallazgo nuevo, no reportado antes): calcDefiniteIntegral
+// tenía el mismo bug de orden de argumentos de subst() ya corregido en
+// linearSystem.ts (Fase 1) — nunca se portó aquí, y no había NINGÚN test
+// para esta función, por eso pasó desapercibido. Antes del fix daba la
+// antiderivada sin evaluar en los límites (ej. 1/3*x^3 en vez de 8/3),
+// en silencio, sin error.
+describe("calcDefiniteIntegral", () => {
+  it("∫₀² x² dx = 8/3", () => {
+    const value = Number(calcDefiniteIntegral("x^2", "x", 0, 2).resultLatex.replace("...", ""));
+    expect(value).toBeCloseTo(8 / 3, 4);
+  });
+
+  it("∫₀^π sin(x) dx = 2", () => {
+    const value = Number(
+      calcDefiniteIntegral("sin(x)", "x", 0, Math.PI).resultLatex.replace("...", ""),
+    );
+    expect(value).toBeCloseTo(2, 4);
+  });
+
+  it("∫₁³ 1/x dx = ln(3)", () => {
+    const value = Number(calcDefiniteIntegral("1/x", "x", 1, 3).resultLatex.replace("...", ""));
+    expect(value).toBeCloseTo(Math.log(3), 4);
   });
 });
