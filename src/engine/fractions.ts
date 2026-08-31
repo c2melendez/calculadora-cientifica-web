@@ -33,3 +33,14 @@ export function toFractionResult(value: string | number): FractionResult {
 
   return { improperLatex, mixedLatex, decimal: decimalStr };
 }
+
+/** Fase 1 (fusión de modos — router evaluate/ecuación/sistema en una sola
+ * pantalla): LaTeX compacto para un Fraction.js ya simplificado — entero
+ * sin \frac cuando el denominador es 1, fracción apilada en el resto de
+ * los casos. Se agrega ahora porque handleLinearSystem (compute.worker.ts)
+ * pasa a ser alcanzable desde la pantalla unificada de BasicScientificMode,
+ * que ya renderiza resultLatex como LaTeX real (Fase E) — sin esto, "x = 12"
+ * se vería como "x = \frac{12}{1}" en vez de "x = 12". */
+export function fractionToLatex(f: Fraction): string {
+  return f.d === 1 ? `${f.n}` : `\\frac{${f.n}}{${f.d}}`;
+}
