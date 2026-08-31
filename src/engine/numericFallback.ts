@@ -200,3 +200,21 @@ export function numericLimit(
   }
   return { value: (rightEstimate ?? leftEstimate)!, converged: true };
 }
+
+/**
+ * Fase 2 externa (hueco #3): límites cuando x tiende a +∞/-∞. No se puede
+ * reusar numericLimit (que se acerca al punto con epsilons cada vez más
+ * chicos) porque el infinito no admite "sumarle epsilon" — en vez de eso
+ * se evalúa en valores cada vez más grandes (magnitud creciente) y se
+ * revisa si el resultado converge entre los dos últimos, mismo criterio
+ * de convergencia que numericLimit.
+ */
+export function numericLimitAtInfinity(f: Fn, sign: 1 | -1): { value: number; converged: boolean } {
+  const magnitudes = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7];
+  const vals = magnitudes.map((m) => f(sign * m)).filter((v) => Number.isFinite(v));
+  if (vals.length === 0) return { value: NaN, converged: false };
+  const last = vals[vals.length - 1];
+  const secondLast = vals.length > 1 ? vals[vals.length - 2] : last;
+  const converged = Math.abs(last - secondLast) < 1e-3;
+  return { value: last, converged };
+}
