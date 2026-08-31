@@ -101,6 +101,12 @@ export const FUNCTION_ARITY: Record<string, number[]> = {
   sum: [4],
   limit: [3],
   d: [2],
+  // Fase 2 externa: producida únicamente por la reescritura de \int_{a}^{b}
+  // en normalize.ts — nunca se le pasa a Algebrite tal cual (se resuelve
+  // aparte en compute.worker.ts, ver tryDefiniteIntegral), pero necesita
+  // registrarse igual para que el tokenizer no le inserte una "*" antes
+  // del paréntesis (mismo bug que mean/median/etc., ver arriba).
+  defintegral: [3],
 };
 
 export const KNOWN_FUNCTION_NAMES = Object.keys(FUNCTION_ARITY);
