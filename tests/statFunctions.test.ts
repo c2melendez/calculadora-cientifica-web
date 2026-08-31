@@ -139,4 +139,25 @@ describe("Fase 10 — ∫/Lim/Σ inline (decisión: resolver en Básica/Científ
   it("integral indefinida sigue funcionando igual tras agregar la forma con límites", () => {
     expect(parseExpression("\\int x^2\\,dx").algebrite).toBe("integral((x^2),x)");
   });
+
+  it('"d/dx" de orden N (\\frac{d^2}{dx^2}...) se reescribe a d(cuerpo,x,N)', () => {
+    expect(parseExpression("\\frac{d^2}{dx^2}\\left(x^3\\right)").algebrite).toBe("d((x^3),x,2)");
+    expect(parseExpression("\\frac{d^{10}}{dx^{10}}\\left(x^{10}\\right)").algebrite).toBe(
+      "d((x^(10)),x,10)",
+    );
+  });
+
+  it('"d/dx" de 1er orden sigue sin el argumento de orden (compatibilidad)', () => {
+    expect(parseExpression("\\frac{d}{dx}\\left(x^2\\right)").algebrite).toBe("d((x^2),x)");
+  });
+
+  it("Lim al infinito se reescribe correctamente (\\infty -> oo)", () => {
+    expect(parseExpression("\\lim_{x\\to\\infty}x").algebrite).toBe("limit((x),x,oo)");
+    expect(parseExpression("\\lim_{x\\to-\\infty}x").algebrite).toBe("limit((x),x,-oo)");
+  });
+
+  it("Lim lateral codifica la dirección como 4to argumento (1=derecha, -1=izquierda)", () => {
+    expect(parseExpression("\\lim_{x\\to0^+}x").algebrite).toBe("limit((x),x,0,1)");
+    expect(parseExpression("\\lim_{x\\to0^-}x").algebrite).toBe("limit((x),x,0,-1)");
+  });
 });
