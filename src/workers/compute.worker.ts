@@ -189,6 +189,35 @@ function tryLimitFallback(raw: string): string | null {
   }
 }
 
+/**
+ * Fase 2 externa (integral con límites, inline): "defintegral(cuerpo,a,b)"
+ * es un marcador propio (nunca nativo de Algebrite) producido solo por
+ * normalize.ts. Se resuelve en DOS llamadas separadas — antiderivada
+ * primero, sustituir después — porque envolver integral() sin evaluar
+ * dentro de subst() en una sola llamada hace que Algebrite sustituya
+ * ANTES de integrar (confirmado con el paquete real: falla con
+ * "Stop: integral: sorry, could not find a solution" en casos con
+ * límites simbólicos como pi). Mismo motivo por el que
+ * calcDefiniteIntegral (stepEngine/calculus.ts) ya lo hacía en dos pasos.
+ */
+function tryDefiniteIntegral(expr: string): string | null {
+  const match = expr.match(/^defintegral\((.*)\)$/s);
+  if (!match) return null;
+  const args = splitTopLevelArgs(match[1]);
+  if (args.length !== 3) return null;
+  const [body, lower, upper] = args;
+  const antiderivative = evaluate(`integral((${body}),x)`);
+  if (/^integral\(/.test(antiderivative)) {
+    throw { code: ErrorCode.UNSUPPORTED_OPERATION, message: "Algebrite no pudo resolver esta integral simbólicamente." } as AppError;
+  }
+  const raw = evaluate(`float(subst(${upper},x,${antiderivative}))-float(subst(${lower},x,${antiderivative}))`);
+  // Igual que float() en general (ver hallazgo arriba), el resultado
+  // puede traer "..." literal de Algebrite indicando precisión truncada
+  // (ej. "2.666667...") — no es válido reinyectarlo en otra llamada a
+  // Algebrite (toLatex/toFractionResult lo intentan y da "NaN...").
+  return raw.replace(/\.\.\.$/, "");
+}
+
 function tryNumericFallback(expr: string): string | null {
   try {
     // Expresión puramente numérica (sin variable libre real que resolver
@@ -221,6 +250,22 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
         // (bmatrix) en vez del texto plano con corchetes.
         resultLatex: isNumericStat ? statResult : toLatex(statResult),
         fraction: isNumericStat ? toFractionResult(statResult) : undefined,
+        steps: [],
+        hasDetailedSteps: false,
+        confidence: "NUMERIC_FALLBACK",
+        requestId,
+      };
+    }
+
+    // Fase 2 externa: integral con límites (\int_{a}^{b}), reescrita a
+    // "defintegral(...)" — se resuelve aparte por el mismo motivo que las
+    // funciones de estadística (Algebrite nunca la ve tal cual).
+    const definiteIntegralResult = tryDefiniteIntegral(expr);
+    if (definiteIntegralResult !== null) {
+      return {
+        success: true,
+        resultLatex: toLatex(definiteIntegralResult),
+        fraction: toFractionResult(definiteIntegralResult),
         steps: [],
         hasDetailedSteps: false,
         confidence: "NUMERIC_FALLBACK",
