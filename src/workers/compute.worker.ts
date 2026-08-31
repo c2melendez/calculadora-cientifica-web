@@ -6,7 +6,7 @@
 // Los demás tipos de operación se añaden en módulos posteriores.
 
 import { evaluate, toLatex, toDecimalApprox, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
-import { toFractionResult } from "../engine/fractions";
+import { toFractionResult, fractionToLatex } from "../engine/fractions";
 import { compileNumeric, numericLimit } from "../engine/numericFallback";
 import { tryStatFunction, splitTopLevelArgs } from "../engine/statFunctions";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
@@ -324,7 +324,7 @@ function handleLinearSystem(equationsAlgebrite: string[], variables: string[], r
     const values = solution.values!;
     return {
       success: true,
-      resultLatex: variables.map((v, i) => `${v} = ${values[i].toFraction(true)}`).join(", "),
+      resultLatex: variables.map((v, i) => `${v} = ${fractionToLatex(values[i])}`).join(",\\ "),
       fraction: values.length === 1 ? toFractionResult(values[0].toFraction()) : undefined,
       steps: solution.steps,
       hasDetailedSteps: true,
