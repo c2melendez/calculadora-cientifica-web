@@ -108,9 +108,22 @@ export function calcDefiniteIntegral(
 ): CalculusResult {
   try {
     const antiderivative = indefiniteIntegral(exprAlgebrite, variable);
-    const upperVal = evaluate(`float(subst(${variable},${upper},${antiderivative}))`);
-    const lowerVal = evaluate(`float(subst(${variable},${lower},${antiderivative}))`);
-    const result = evaluate(`${upperVal}-(${lowerVal})`);
+    // FIX (Fase 2 externa, hallazgo nuevo): subst() de Algebrite toma
+    // (nuevo_valor, variable_vieja, expr), no al revés — mismo bug ya
+    // corregido en linearSystem.ts (Fase 1) pero nunca portado aquí. Con
+    // el orden viejo (variable, valor, expr) la sustitución nunca hacía
+    // nada: daba la antiderivada sin evaluar en los límites (ej.
+    // 1/3*x^3 en vez de 8/3 para ∫₀² x² dx), en silencio, sin error.
+    //
+    // Segundo bug destapado al corregir el primero (nunca se llegaba
+    // aquí antes): float(...) de Algebrite devuelve un string con "..."
+    // literal cuando el decimal no es exacto (ej. "2.666667..."), y
+    // volver a meter ese string en otro evaluate() como si fuera una
+    // expresión válida da "NaN...". Se evita el viaje de ida y vuelta
+    // por texto combinando la resta en una sola llamada a Algebrite.
+    const result = evaluate(
+      `float(subst(${upper},${variable},${antiderivative})) - float(subst(${lower},${variable},${antiderivative}))`,
+    );
     return {
       resultLatex: result,
       confidence: "SYMBOLIC",
