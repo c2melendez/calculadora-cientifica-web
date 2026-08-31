@@ -7,7 +7,7 @@
 
 import { evaluate, toLatex, toDecimalApprox, ErrorCode as ClientErrorCode } from "../engine/algebriteClient";
 import { toFractionResult, fractionToLatex } from "../engine/fractions";
-import { compileNumeric, numericLimit } from "../engine/numericFallback";
+import { compileNumeric, numericLimit, numericLimitAtInfinity } from "../engine/numericFallback";
 import { tryStatFunction, splitTopLevelArgs } from "../engine/statFunctions";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
 import {
@@ -175,14 +175,28 @@ function tryLimitFallback(raw: string): string | null {
   const match = raw.match(/^limit\((.*)\)$/s);
   if (!match) return null;
   const args = splitTopLevelArgs(match[1]);
-  if (args.length !== 3) return null;
-  const [body, variable, pointExpr] = args;
+  if (args.length !== 3 && args.length !== 4) return null;
+  const [body, variable, pointExpr, directionArg] = args;
   try {
+    // Fase 2 externa (hueco #4): límite lateral — 4to argumento opcional,
+    // 1=derecha, -1=izquierda (ver normalize.ts, sufijo ^+/^- del punto).
+    const direction = directionArg === "1" ? "right" : directionArg === "-1" ? "left" : "both";
+
+    // Fase 2 externa (hueco #3): límite al infinito. Para cuando esto se
+    // ejecuta, \infty ya se tradujo a "oo" (misma pasada de normalize.ts)
+    // — Number("oo") siempre da NaN, así que se compara como string en
+    // vez de intentar convertir primero.
     const pointRaw = evaluate(pointExpr);
+    if (pointRaw === "oo" || pointRaw === "-oo") {
+      const fn = compileNumeric(body, variable);
+      const { value, converged } = numericLimitAtInfinity(fn, pointRaw === "oo" ? 1 : -1);
+      return Number.isFinite(value) && converged ? String(value) : null;
+    }
+
     const pointNumeric = Number(pointRaw);
     if (!Number.isFinite(pointNumeric)) return null;
     const fn = compileNumeric(body, variable);
-    const { value, converged } = numericLimit(fn, pointNumeric);
+    const { value, converged } = numericLimit(fn, pointNumeric, direction);
     return Number.isFinite(value) && converged ? String(value) : null;
   } catch {
     return null;
