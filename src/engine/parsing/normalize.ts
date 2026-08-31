@@ -125,10 +125,29 @@ export function preprocessLatex(latex: string): string {
   //
   // ∫: plantilla fija "\int #0\,dx" (siempre respecto a x, sin variable
   // configurable) -> integral((cuerpo),x), nativo en Algebrite.
+  //
+  // Fase 2 externa: también se soporta la forma con límites,
+  // \int_{a}^{b}...\,dx (no viene de una tecla del teclado — el teclado
+  // solo tiene la indefinida — pero MathLive la acepta si se escribe a
+  // mano con _/^). Se reescribe a un marcador "defintegral(cuerpo,a,b)"
+  // que compute.worker.ts resuelve en DOS llamadas separadas a Algebrite
+  // (antiderivada primero, después sustituir en el resultado ya
+  // evaluado) — hallazgo real: Algebrite sustituye ANTES de resolver la
+  // integral si subst() envuelve integral() sin evaluar todavía en la
+  // misma llamada ("Stop: integral: sorry, could not find a solution"
+  // con límites simbólicos como pi), el mismo motivo por el que
+  // calcDefiniteIntegral (stepEngine/calculus.ts) siempre lo hizo en dos
+  // pasos — no es solo estilo, es necesario.
   {
-    const intMatch = expr.match(/\\int(.*)\\,dx$/s);
-    if (intMatch) {
-      expr = `integral((${intMatch[1]}),x)`;
+    const definiteMatch = expr.match(/\\int_\{([^{}]*)\}\^\{([^{}]*)\}(.*)\\,dx$/s);
+    if (definiteMatch) {
+      const [, lower, upper, body] = definiteMatch;
+      expr = `defintegral((${body}),${lower},${upper})`;
+    } else {
+      const intMatch = expr.match(/\\int(.*)\\,dx$/s);
+      if (intMatch) {
+        expr = `integral((${intMatch[1]}),x)`;
+      }
     }
   }
 
