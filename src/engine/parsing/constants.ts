@@ -99,8 +99,8 @@ export const FUNCTION_ARITY: Record<string, number[]> = {
   // median/etc — ver constants.ts arriba).
   integral: [2],
   sum: [4],
-  limit: [3],
-  d: [2],
+  limit: [3, 4],
+  d: [2, 3],
   // Fase 2 externa: producida únicamente por la reescritura de \int_{a}^{b}
   // en normalize.ts — nunca se le pasa a Algebrite tal cual (se resuelve
   // aparte en compute.worker.ts, ver tryDefiniteIntegral), pero necesita
