@@ -61,12 +61,21 @@ export function preprocessLatex(latex: string): string {
   // que "d" y "dx" quedaban como símbolos sueltos, el motor SÍ devolvía
   // un resultado, pero matemáticamente incorrecto y sin ningún error que
   // lo señalara (ej. d/dx(x^2) daba "d*x^2/dx" en vez de "2x").
+  //
+  // Fase 2 externa: también se soporta orden N — \frac{d^2}{dx^2}(...)
+  // (sin llaves si N es un solo dígito) o \frac{d^{10}}{dx^{10}}(...)
+  // (con llaves si N tiene más de un dígito), no vienen de una tecla del
+  // teclado (solo hay una de 1er orden) pero MathLive las acepta si se
+  // escriben a mano. d(cuerpo,x,N) es nativo en Algebrite (confirmado
+  // probando el paquete real que SÍ soporta un 3er argumento de orden,
+  // no solo dos llamadas anidadas).
   {
-    const marker = "\\frac{d}{dx}\\left(";
-    const idx = expr.indexOf(marker);
-    if (idx !== -1) {
+    const dMatch = expr.match(/\\frac\{d(?:\^\{?(\d+)\}?)?\}\{dx(?:\^\{?\d+\}?)?\}\\left\(/);
+    if (dMatch) {
+      const idx = dMatch.index!;
+      const order = dMatch[1] ? Number(dMatch[1]) : 1;
       let depth = 1;
-      let j = idx + marker.length;
+      let j = idx + dMatch[0].length;
       while (j < expr.length && depth > 0) {
         if (expr.startsWith("\\left(", j)) {
           depth++;
@@ -81,8 +90,9 @@ export function preprocessLatex(latex: string): string {
       if (depth !== 0) {
         throw parseError('Paréntesis sin balancear tras "d/dx".');
       }
-      const body = expr.slice(idx + marker.length, j - 7);
-      expr = `${expr.slice(0, idx)}d((${body}),x)${expr.slice(j)}`;
+      const body = expr.slice(idx + dMatch[0].length, j - 7);
+      const orderArg = order === 1 ? "" : `,${order}`;
+      expr = `${expr.slice(0, idx)}d((${body}),x${orderArg})${expr.slice(j)}`;
     }
   }
 
@@ -172,6 +182,15 @@ export function preprocessLatex(latex: string): string {
   // evalúa (confirmado probando el paquete real) — el fallback numérico
   // para ese caso vive en compute.worker.ts (tryLimitFallback), reusando
   // el mismo evaluador numérico propio de Fase 3/Módulo de límites.
+  //
+  // Fase 2 externa (huecos #3 y #4): también se soporta el punto al
+  // infinito (x\to\infty / x\to-\infty — \infty se traduce a "oo" más
+  // abajo en la misma pasada, ya que el reemplazo corre sobre el string
+  // completo) y el límite lateral (x\to0^+ / x\to0^-, sufijo ^+/^-
+  // pegado al punto). La dirección se codifica como un 4to argumento
+  // (1=derecha, -1=izquierda) — Algebrite tolera argumentos de más en
+  // limit() sin tronar (los ignora, los devuelve tal cual sin evaluar,
+  // que es justo la señal que ya usa tryLimitFallback para intervenir).
   {
     const limMatch = expr.match(/\\lim_\{([^{}]*)\}(.*)$/s);
     if (limMatch) {
@@ -181,8 +200,14 @@ export function preprocessLatex(latex: string): string {
         throw parseError('Lim espera la forma "variable\\to punto" (ej. x\\to0) en el subíndice.');
       }
       const limVar = varTo.slice(0, toIndex);
-      const point = varTo.slice(toIndex + "\\to".length);
-      expr = `limit((${body}),${limVar},${point})`;
+      let point = varTo.slice(toIndex + "\\to".length);
+      let direction = "";
+      const dirMatch = point.match(/\^([+-])$/);
+      if (dirMatch) {
+        point = point.slice(0, -2);
+        direction = dirMatch[1] === "+" ? ",1" : ",-1";
+      }
+      expr = `limit((${body}),${limVar},${point}${direction})`;
     }
   }
 
