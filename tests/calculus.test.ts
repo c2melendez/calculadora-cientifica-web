@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compileNumeric, simpsonIntegral, numericLimit } from "../src/engine/numericFallback";
+import { compileNumeric, simpsonIntegral, numericLimit, numericLimitAtInfinity } from "../src/engine/numericFallback";
 import { calcDefiniteIntegral } from "../src/engine/stepEngine/calculus";
 
 // NO EJECUTADO en el entorno de generación. Correr con `npm run test`.
@@ -34,6 +34,38 @@ describe("numericLimit", () => {
     const { value, converged } = numericLimit(f, 0);
     expect(converged).toBe(true);
     expect(value).toBeCloseTo(1, 2);
+  });
+
+  // Fase 2 externa (hueco #4): límite lateral, dirección "left"/"right".
+  it("respeta la dirección lateral (1/x en 0+ diverge a +∞, en 0- a -∞)", () => {
+    const f = compileNumeric("1/x", "x");
+    const { value: right } = numericLimit(f, 0, "right");
+    const { value: left } = numericLimit(f, 0, "left");
+    expect(right).toBeGreaterThan(0);
+    expect(left).toBeLessThan(0);
+  });
+});
+
+// Fase 2 externa (hueco #3): límite cuando x tiende a +∞/-∞.
+describe("numericLimitAtInfinity", () => {
+  it("1/x en x->+∞ tiende a 0", () => {
+    const f = compileNumeric("1/x", "x");
+    const { value, converged } = numericLimitAtInfinity(f, 1);
+    expect(converged).toBe(true);
+    expect(value).toBeCloseTo(0, 4);
+  });
+
+  it("1/x en x->-∞ tiende a 0", () => {
+    const f = compileNumeric("1/x", "x");
+    const { value, converged } = numericLimitAtInfinity(f, -1);
+    expect(converged).toBe(true);
+    expect(value).toBeCloseTo(0, 4);
+  });
+
+  it("(2x+1)/(x+3) en x->+∞ tiende a 2 (cociente de coeficientes líderes)", () => {
+    const f = compileNumeric("(2*x+1)/(x+3)", "x");
+    const { value } = numericLimitAtInfinity(f, 1);
+    expect(value).toBeCloseTo(2, 2);
   });
 });
 
