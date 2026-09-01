@@ -203,11 +203,13 @@ export function BasicScientificMode() {
         sessionHistory={sessionHistory}
         angleMode={angleMode}
         onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+        onClearField={() => setLatex("")}
       />
       <MathKeyboard
         field={mathField}
         onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
         onEnter={handleCalculate}
+        onClearField={() => setLatex("")}
         onSolveEquation={handleSolveEquation}
         onSolveSystem={handleSolveSystem}
         onSimplify={handleSimplify}
