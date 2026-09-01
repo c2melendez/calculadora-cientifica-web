@@ -165,6 +165,7 @@ export function CalculusMode() {
         sessionHistory={sessionHistory}
         angleMode={angleMode}
         onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+        onClearField={() => setLatex("")}
       />
 
       {operation === "derivative" && (
