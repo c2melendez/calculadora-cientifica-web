@@ -28,6 +28,10 @@ interface ScreenProps {
   sessionHistory: SessionHistoryEntry[];
   angleMode: "RAD" | "GRAD";
   onToggleAngleMode: () => void;
+  /** Punto 7 del rediseño de teclado: botón "X" para vaciar el campo,
+   * visible dentro del display cuando hay contenido (igual que la
+   * captura de referencia, tooltip "clear field"). */
+  onClearField: () => void;
 }
 
 export function Screen({
@@ -39,6 +43,7 @@ export function Screen({
   sessionHistory,
   angleMode,
   onToggleAngleMode,
+  onClearField,
 }: ScreenProps) {
   return (
     <div className="rounded-xl bg-paper-soft px-4 py-3 shadow-inner shadow-black/10">
@@ -52,7 +57,20 @@ export function Screen({
         </div>
       )}
 
-      <NaturalInput value={latex} onChange={onChangeLatex} placeholder={placeholder} fieldRef={fieldRef} bare />
+      <div className="relative">
+        <NaturalInput value={latex} onChange={onChangeLatex} placeholder={placeholder} fieldRef={fieldRef} bare />
+        {latex.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearField}
+            aria-label="Borrar campo"
+            title="clear field"
+            className="absolute right-0 top-0 rounded p-1 text-muted hover:text-ink"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       <ResultPanel result={result} />
     </div>
   );
