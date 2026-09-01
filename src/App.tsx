@@ -32,6 +32,14 @@ const MODE_LABELS: Record<Mode, string> = {
   history: "Historial",
 };
 
+// Punto 4 del rediseño de teclado (pedido de Carlos): Álgebra/Cálculo/
+// Sistemas ya no deben verse en el frontend — su función quedó cubierta
+// por el router de Fase 1/2 dentro de "Científica" (ecuación/sistema/
+// derivada/integral/límite, todo en una sola pantalla). Los modos en sí
+// NO se eliminan (siguen existiendo, siguen siendo válidos si algo
+// interno navega ahí), solo se les quita la pestaña visible.
+const VISIBLE_MODES: Mode[] = ["basic", "simple", "matrices", "graphing", "history"];
+
 export default function App() {
   const [mode, setMode] = useState<Mode>("basic");
 
@@ -45,7 +53,7 @@ export default function App() {
         <ThemeToggle />
       </header>
       <nav className="flex flex-wrap justify-center gap-1.5 border-b border-chrome-soft bg-chrome px-2 py-2 text-sm">
-        {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
+        {(VISIBLE_MODES).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
