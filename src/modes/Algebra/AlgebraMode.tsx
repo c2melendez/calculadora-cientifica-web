@@ -94,6 +94,7 @@ export function AlgebraMode() {
         field={mathField}
         onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
         onEnter={handleSolve}
+        onClearField={() => setLatex("")}
       />
     </div>
   );
