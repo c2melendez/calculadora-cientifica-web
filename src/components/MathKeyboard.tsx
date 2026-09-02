@@ -112,10 +112,16 @@ const CALCULUS_ROW_2: KeyDef[] = [
   // incorrecta sin aviso" que se cazó varias veces esta sesión).
   key({ frac: ["dⁿ", "dxⁿ"] }, "\\frac{d^3}{dx^3}\\left(#0\\right)", "derivada de orden n (edita el 3 por el orden que quieras)"),
   key({ frac: ["∂", "∂x"] }, "", "derivada parcial", true),
-  key({ base: "lim", sub: "x→0" }, "\\lim_{x\\to0}#0", "límite en 0"),
-  key({ base: "lim", sub: "x→∞" }, "\\lim_{x\\to\\infty}#0", "límite al infinito"),
-  key({ base: "lim", sub: "x→0+" }, "\\lim_{x\\to0^+}#0", "límite lateral derecho"),
-  key({ base: "lim", sub: "x→0-" }, "\\lim_{x\\to0^-}#0", "límite lateral izquierdo"),
+  // Fase 3 (idea tomada del patch externo, verificada con mi propio
+  // motor): antes el punto/variable estaban fijos en la plantilla ("x",
+  // "0") — ahora son placeholders editables (#0=variable, #1=punto,
+  // #2=cuerpo), el usuario puede pedir un límite en cualquier variable y
+  // punto, no solo x→0. normalize.ts ya soporta variable arbitraria (no
+  // hardcodeaba "x"), así que este cambio es seguro sin tocar el motor.
+  key({ base: "lim", sub: "x→a" }, "\\lim_{#0\\to#1}#2", "límite"),
+  key({ base: "lim", sub: "x→∞" }, "\\lim_{#0\\to\\infty}#1", "límite al infinito"),
+  key({ base: "lim", sub: "x→a+" }, "\\lim_{#0\\to#1^+}#2", "límite lateral derecho"),
+  key({ base: "lim", sub: "x→a-" }, "\\lim_{#0\\to#1^-}#2", "límite lateral izquierdo"),
 ];
 
 // ---- Menús flotantes por categoría (spec §3.5) — solo Trig/Stat tras el
