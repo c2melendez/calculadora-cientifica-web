@@ -33,7 +33,8 @@ export function CalculusMode() {
   const [operation, setOperation] = useState<Operation>("derivative");
   const [latex, setLatex] = useState("");
   const [point, setPoint] = useState("0");
-  const [order, setOrder] = useState<1 | 2 | 3>(1);
+  const [direction, setDirection] = useState<"both" | "left" | "right">("both");
+  const [order, setOrder] = useState(1);
   const [lower, setLower] = useState("0");
   const [upper, setUpper] = useState("1");
   const [result, setResult] = useState<MathResult | null>(null);
@@ -94,6 +95,10 @@ export function CalculusMode() {
     };
 
     if (operation === "derivative") {
+      if (!Number.isInteger(order) || order < 1 || order > 20) {
+        fail(ErrorCode.PARSE_ERROR, "El orden debe ser un entero entre 1 y 20.", requestId);
+        return;
+      }
       worker.postMessage({
         type: "derivative",
         requestId,
@@ -102,9 +107,17 @@ export function CalculusMode() {
         order,
       });
     } else if (operation === "limit") {
-      const pointNumeric = parseFloat(point);
-      if (Number.isNaN(pointNumeric)) {
-        fail(ErrorCode.PARSE_ERROR, "El punto del límite debe ser un número.", requestId);
+      // Fase 3 (paridad con la pantalla única): "oo"/"-oo" ya no se
+      // rechazan acá — normalize.ts los acepta desde \infty en la
+      // notación natural, y calcLimit (compute.worker.ts) ya sabe
+      // resolverlos numéricamente cuando Algebrite no puede
+      // simbólicamente. pointNumeric solo importa para el caso finito
+      // (numericLimit necesita un número real para evaluar cerca de él);
+      // para oo/-oo se ignora en calcLimit (usa numericLimitAtInfinity).
+      const isInfinitePoint = point === "oo" || point === "-oo";
+      const pointNumeric = isInfinitePoint ? 0 : parseFloat(point);
+      if (!isInfinitePoint && Number.isNaN(pointNumeric)) {
+        fail(ErrorCode.PARSE_ERROR, 'El punto del límite debe ser un número, o "oo"/"-oo" para infinito.', requestId);
         return;
       }
       worker.postMessage({
@@ -114,6 +127,7 @@ export function CalculusMode() {
         variable,
         pointAlgebrite: point,
         pointNumeric,
+        direction,
       });
     } else if (operation === "indefiniteIntegral") {
       worker.postMessage({
@@ -138,7 +152,7 @@ export function CalculusMode() {
         upper: upperNumeric,
       });
     }
-  }, [latex, operation, order, point, lower, upper, angleMode, getWorker, fail]);
+  }, [latex, operation, order, point, direction, lower, upper, angleMode, getWorker, fail]);
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
@@ -171,28 +185,59 @@ export function CalculusMode() {
       {operation === "derivative" && (
         <label className="flex items-center gap-2 text-sm text-muted">
           Orden:
-          <select
+          <input
+            type="number"
+            min={1}
+            max={20}
+            step={1}
             value={order}
-            onChange={(e) => setOrder(Number(e.target.value) as 1 | 2 | 3)}
-            className="rounded bg-paper-soft px-2 py-1 text-ink"
-          >
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-          </select>
+            onChange={(e) => setOrder(Math.round(Number(e.target.value)))}
+            className="w-16 rounded bg-paper-soft px-2 py-1 text-ink"
+          />
+          <span className="text-xs text-muted">(1-20)</span>
         </label>
       )}
 
       {operation === "limit" && (
-        <label className="flex items-center gap-2 text-sm text-muted">
-          x →
-          <input
-            value={point}
-            onChange={(e) => setPoint(e.target.value)}
-            className="w-24 rounded bg-paper-soft px-2 py-1 text-ink"
-            placeholder="0"
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+          <label className="flex items-center gap-2">
+            x →
+            <input
+              value={point}
+              onChange={(e) => setPoint(e.target.value)}
+              className="w-24 rounded bg-paper-soft px-2 py-1 text-ink"
+              placeholder="0, oo, -oo"
+            />
+          </label>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setPoint("oo")}
+              className="rounded-full border border-paper-line px-2 py-0.5 text-xs hover:border-marker/40 hover:text-marker"
+            >
+              ∞
+            </button>
+            <button
+              type="button"
+              onClick={() => setPoint("-oo")}
+              className="rounded-full border border-paper-line px-2 py-0.5 text-xs hover:border-marker/40 hover:text-marker"
+            >
+              −∞
+            </button>
+          </div>
+          <label className="flex items-center gap-2">
+            Lado:
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as "both" | "left" | "right")}
+              className="rounded bg-paper-soft px-2 py-1 text-ink"
+            >
+              <option value="both">ambos (x → a)</option>
+              <option value="right">derecha (x → a⁺)</option>
+              <option value="left">izquierda (x → a⁻)</option>
+            </select>
+          </label>
+        </div>
       )}
 
       {operation === "definiteIntegral" && (
