@@ -12,6 +12,41 @@ function parseError(message: string): AppError {
  * Reemplaza \sqrt{...} y \sqrt[n]{...} de forma balanceada (no con regex
  * ingenuo, que rompe con anidamiento — ej. \sqrt{\sqrt{x}}).
  */
+/**
+ * BUG real (reportado por el usuario con capturas: "5/2" y "√7" escritos
+ * a mano en el campo daban PARSE_ERROR "Se esperaba '{' tras \frac" /
+ * "Llave de apertura faltante tras \sqrt"). El LaTeX real (y MathLive)
+ * acepta que el argumento de \frac/\sqrt sea un grupo {...} O un único
+ * token suelto (un dígito, una letra, o un \comando) — es sintaxis TeX
+ * estándar, no un caso raro: MathLive serializa fracciones/raíces de un
+ * solo carácter así cuando se escriben directo con el teclado físico (no
+ * con los botones de plantilla, que sí siempre insertan llaves). El
+ * código anterior asumía SIEMPRE llaves inmediatas, rompiendo con
+ * cualquier fracción/raíz de un solo dígito escrita a mano.
+ */
+function readBalancedOrSingleToken(input: string, fromIndex: number, macroLabel: string): [string, number] {
+  if (input[fromIndex] === "{") {
+    let depth = 1;
+    let j = fromIndex + 1;
+    while (j < input.length && depth > 0) {
+      if (input[j] === "{") depth++;
+      else if (input[j] === "}") depth--;
+      j++;
+    }
+    if (depth !== 0) throw parseError(`Llaves sin balancear en ${macroLabel}.`);
+    return [input.slice(fromIndex + 1, j - 1), j];
+  }
+  if (input[fromIndex] === "\\") {
+    const m = input.slice(fromIndex).match(/^\\[a-zA-Z]+/);
+    if (!m) throw parseError(`Token inválido tras ${macroLabel}.`);
+    return [m[0], fromIndex + m[0].length];
+  }
+  if (fromIndex < input.length && /[0-9a-zA-Z]/.test(input[fromIndex])) {
+    return [input[fromIndex], fromIndex + 1];
+  }
+  throw parseError(`Se esperaba "{" o un token tras ${macroLabel}.`);
+}
+
 function replaceBalanced(
   input: string,
   openToken: string,
@@ -21,19 +56,15 @@ function replaceBalanced(
   let i = 0;
   while (i < input.length) {
     if (input.startsWith(openToken, i)) {
-      const braceStart = input.indexOf("{", i);
-      if (braceStart === -1) throw parseError(`Llave de apertura faltante tras "${openToken}".`);
-      let depth = 1;
-      let j = braceStart + 1;
-      while (j < input.length && depth > 0) {
-        if (input[j] === "{") depth++;
-        else if (input[j] === "}") depth--;
-        j++;
-      }
-      if (depth !== 0) throw parseError(`Llaves sin balancear tras "${openToken}".`);
-      const inner = input.slice(braceStart + 1, j - 1);
+      // Antes: buscaba la próxima "{" en CUALQUIER posición hacia
+      // adelante (input.indexOf), lo que además de fallar sin llaves,
+      // silenciosamente se comía cualquier carácter intermedio si había
+      // una "{" más lejos en el string (bug latente, nunca disparado por
+      // el caso reportado, pero real). Ahora exige adyacencia inmediata
+      // (grupo o token único), sin buscar hacia adelante.
+      const [inner, next] = readBalancedOrSingleToken(input, i + openToken.length, `"${openToken}"`);
       result += transform(inner, i);
-      i = j;
+      i = next;
     } else {
       result += input[i];
       i++;
@@ -112,7 +143,17 @@ export function preprocessLatex(latex: string): string {
   // y consume solo esa parte, descartando el índice "[3]" en silencio y
   // convirtiendo la raíz cúbica en una raíz cuadrada sin ningún error.
   expr = expr.replace(/\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g, "($2)^(1/($1))");
-  expr = replaceBalanced(expr, "\\sqrt", (inner) => `sqrt(${inner})`);
+  // BUG real (preexistente, encontrado al verificar el fix de arriba):
+  // una sola pasada de replaceBalanced NO es recursiva — \sqrt{\sqrt{x}}
+  // procesaba solo el \sqrt externo, dejando un "\sqrt{x}" literal sin
+  // convertir pegado dentro de "sqrt(...)", pese a que el comentario de
+  // esta función decía explícitamente que el anidamiento funcionaba.
+  // Mismo patrón de loop "hasta estabilizar" que ya usa \frac arriba.
+  let prevSqrtLength = -1;
+  while (expr.includes("\\sqrt") && expr.length !== prevSqrtLength) {
+    prevSqrtLength = expr.length;
+    expr = replaceBalanced(expr, "\\sqrt", (inner) => `sqrt(${inner})`);
+  }
 
   // FIX (auditoría Fase 0 v2, Fase 10): \mathrm{nombre} es el macro que
   // MathLive usa para "texto no cursivo" — el teclado Fase A lo usa para
@@ -246,23 +287,10 @@ export function preprocessLatex(latex: string): string {
 function replaceFracOnce(expr: string): string {
   const start = expr.indexOf("\\frac");
   if (start === -1) return expr;
-  let i = start + "\\frac".length;
+  const i = start + "\\frac".length;
 
-  function readGroup(pos: number): [string, number] {
-    if (expr[pos] !== "{") throw parseError("Se esperaba \"{\" tras \\frac.");
-    let depth = 1;
-    let j = pos + 1;
-    while (j < expr.length && depth > 0) {
-      if (expr[j] === "{") depth++;
-      else if (expr[j] === "}") depth--;
-      j++;
-    }
-    if (depth !== 0) throw parseError("Llaves sin balancear en \\frac.");
-    return [expr.slice(pos + 1, j - 1), j];
-  }
-
-  const [numerator, afterNum] = readGroup(i);
-  const [denominator, afterDen] = readGroup(afterNum);
+  const [numerator, afterNum] = readBalancedOrSingleToken(expr, i, "\\frac");
+  const [denominator, afterDen] = readBalancedOrSingleToken(expr, afterNum, "\\frac");
   return expr.slice(0, start) + `((${numerator})/(${denominator}))` + expr.slice(afterDen);
 }
 
