@@ -27,6 +27,12 @@ function renderLatex(latex: string): { __html: string } {
 
 export function ResultPanel({ result }: { result: MathResult | null }) {
   const [format, setFormat] = useState<AnswerFormat>("dec");
+  // Antes: "frac" siempre mostraba mixta cuando estaba disponible
+  // (mixedLatex ?? improperLatex), sin forma de pedir la impropia. El
+  // usuario pidió explícitamente poder elegir — ahora hay un toggle
+  // chico que solo aparece cuando realmente hay una forma mixta posible
+  // (fracción impropia: |numerador| >= denominador).
+  const [showMixed, setShowMixed] = useState(true);
 
   if (!result) {
     return <p className="py-1 text-right text-sm text-muted">Escribe una expresión y presiona Calcular.</p>;
@@ -43,7 +49,9 @@ export function ResultPanel({ result }: { result: MathResult | null }) {
 
   function renderValue(): { latex: string; isPlainNumber: boolean } {
     if (format === "frac" && result?.fraction) {
-      return { latex: result.fraction.mixedLatex ?? result.fraction.improperLatex, isPlainNumber: false };
+      const hasMixed = result.fraction.mixedLatex !== null;
+      const latex = hasMixed && showMixed ? result.fraction.mixedLatex! : result.fraction.improperLatex;
+      return { latex, isPlainNumber: false };
     }
     if (format === "scn") {
       // fraction.decimal y decimalApprox pueden traer "…" al final cuando
@@ -90,6 +98,16 @@ export function ResultPanel({ result }: { result: MathResult | null }) {
           />
         )}
       </div>
+      {format === "frac" && result.fraction?.mixedLatex !== null && result.fraction && (
+        <div className="mt-1 flex justify-end">
+          <button
+            onClick={() => setShowMixed((v) => !v)}
+            className="text-xs text-muted underline decoration-dotted hover:text-marker"
+          >
+            {showMixed ? "ver como impropia" : "ver como mixta"}
+          </button>
+        </div>
+      )}
       <div className="mt-1.5 flex justify-end gap-3 text-xs text-muted">
         {(["dec", "frac", "scn", "sqrt"] as AnswerFormat[]).map((f) => (
           <button
