@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { compileNumeric, simpsonIntegral, numericLimit, numericLimitAtInfinity } from "../src/engine/numericFallback";
-import { calcDefiniteIntegral } from "../src/engine/stepEngine/calculus";
+import { calcDefiniteIntegral, calcLimit, calcDerivative } from "../src/engine/stepEngine/calculus";
 
 // NO EJECUTADO en el entorno de generación. Correr con `npm run test`.
 
@@ -91,5 +91,63 @@ describe("calcDefiniteIntegral", () => {
   it("∫₁³ 1/x dx = ln(3)", () => {
     const value = Number(calcDefiniteIntegral("1/x", "x", 1, 3).resultLatex.replace("...", ""));
     expect(value).toBeCloseTo(Math.log(3), 4);
+  });
+});
+
+// Fase 3 (paridad con la pantalla única): calcLimit/calcDerivative ya
+// aceptaban lo mismo que tryLimitFallback/normalize.ts internamente, pero
+// no estaban cableados desde CalculusMode.tsx (el formulario dedicado
+// seguía limitado a orden 1-3 y puntos finitos). Estos tests cubren el
+// motor directamente, independiente de la UI.
+describe("calcLimit (Fase 3 — infinito y lateral, paridad con la pantalla única)", () => {
+  it("límite finito de una función continua (control, comportamiento previo sin cambios)", () => {
+    const result = calcLimit("x^2", "x", "2", 2);
+    expect(Number(result.resultLatex.replace("...", ""))).toBeCloseTo(4, 3);
+  });
+
+  it("límite en +infinito: 1/x -> 0", () => {
+    const result = calcLimit("1/x", "x", "oo", 0);
+    expect(result.confidence).toBe("NUMERIC_FALLBACK"); // Algebrite no lo resuelve simbólicamente
+    expect(Number(result.resultLatex)).toBeCloseTo(0, 3);
+  });
+
+  it("límite en -infinito: 1/x -> 0", () => {
+    const result = calcLimit("1/x", "x", "-oo", 0);
+    expect(Number(result.resultLatex)).toBeCloseTo(0, 3);
+  });
+
+  it("límite lateral derecho de 1/x en 0 -> +infinito (no converge, pero no explota)", () => {
+    const result = calcLimit("1/x", "x", "0", 0, "right");
+    // 1/x cerca de 0 por la derecha crece sin cota — no se espera un
+    // valor finito preciso, solo que no truene y quede marcado como no
+    // convergente o con un valor grande.
+    expect(result.resultLatex).toBeDefined();
+  });
+
+  it("límite lateral (izquierda vs derecha) de una función continua da el mismo valor que 'both'", () => {
+    const both = calcLimit("x^2+1", "x", "3", 3, "both");
+    const right = calcLimit("x^2+1", "x", "3", 3, "right");
+    expect(Number(right.resultLatex.replace("...", ""))).toBeCloseTo(
+      Number(both.resultLatex.replace("...", "")),
+      2,
+    );
+  });
+});
+
+describe("calcDerivative (Fase 3 — orden N sin tope de 3, paridad con la pantalla única)", () => {
+  it("orden 1 (control, comportamiento previo sin cambios)", () => {
+    expect(calcDerivative("x^2", "x", 1).resultLatex.replace(/\s/g, "")).toMatch(/2\*?x/);
+  });
+
+  it("orden 4 de x^5 -> 120x (antes inalcanzable, tope era 3)", () => {
+    expect(calcDerivative("x^5", "x", 4).resultLatex.replace(/\s/g, "")).toMatch(/120\*?x/);
+  });
+
+  it("orden 8 de x^9 -> 362880x (9! = 362880)", () => {
+    expect(calcDerivative("x^9", "x", 8).resultLatex.replace(/\s/g, "")).toMatch(/362880\*?x/);
+  });
+
+  it("rechaza orden fuera de rango (>20, guarda de sensatez)", () => {
+    expect(() => calcDerivative("x^2", "x", 25)).toThrow();
   });
 });
