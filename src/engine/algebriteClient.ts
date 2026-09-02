@@ -60,8 +60,18 @@ export function evaluate(expressionLatex: string): string {
   }
 }
 
-/** Deriva una expresión respecto a una variable, orden 1-3 (spec v10 §7). */
-export function derivative(expressionAlgebrite: string, variable: string, order: 1 | 2 | 3 = 1): string {
+/**
+ * Deriva una expresión respecto a una variable, orden N (spec v10 §7,
+ * Fase 3: paridad con la pantalla única — normalize.ts ya acepta
+ * cualquier N en \frac{d^N}{dx^N} escrito a mano, este formulario no
+ * debería quedar más limitado). Guarda de sensatez en 20: un loop de
+ * `d()` de cientos de vueltas no tiene utilidad matemática real y sí
+ * puede colgar el worker con expresiones grandes.
+ */
+export function derivative(expressionAlgebrite: string, variable: string, order: number = 1): string {
+  if (!Number.isInteger(order) || order < 1 || order > 20) {
+    throw toAppError(ErrorCode.COMPLEXITY_LIMIT, `Orden de derivada fuera de rango (1-20): ${order}.`);
+  }
   try {
     let expr: string = expressionAlgebrite;
     for (let i = 0; i < order; i++) {
