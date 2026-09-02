@@ -47,7 +47,7 @@ export type ComputeRequest =
       requestId: string;
       expressionAlgebrite: string;
       variable: string;
-      order: 1 | 2 | 3;
+      order: number;
     }
   | {
       type: "limit";
@@ -56,6 +56,7 @@ export type ComputeRequest =
       variable: string;
       pointAlgebrite: string;
       pointNumeric: number;
+      direction?: "both" | "left" | "right";
     }
   | { type: "indefiniteIntegral"; requestId: string; expressionAlgebrite: string; variable: string }
   | {
@@ -93,7 +94,7 @@ function handle(msg: ComputeRequest): MathResult {
       return runCalculus(msg.requestId, () => calcDerivative(msg.expressionAlgebrite, msg.variable, msg.order));
     case "limit":
       return runCalculus(msg.requestId, () =>
-        calcLimit(msg.expressionAlgebrite, msg.variable, msg.pointAlgebrite, msg.pointNumeric),
+        calcLimit(msg.expressionAlgebrite, msg.variable, msg.pointAlgebrite, msg.pointNumeric, msg.direction),
       );
     case "indefiniteIntegral":
       return runCalculus(msg.requestId, () => calcIndefiniteIntegral(msg.expressionAlgebrite, msg.variable));
