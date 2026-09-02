@@ -18,7 +18,7 @@ import {
   evaluate,
   ErrorCode,
 } from "../algebriteClient";
-import { compileNumeric, numericLimit, simpsonIntegral } from "../numericFallback";
+import { compileNumeric, numericLimit, numericLimitAtInfinity, simpsonIntegral } from "../numericFallback";
 import type { Step, AppError, ResultConfidence } from "../../types";
 
 export interface CalculusResult {
@@ -27,7 +27,14 @@ export interface CalculusResult {
   confidence: ResultConfidence;
 }
 
-export function calcDerivative(exprAlgebrite: string, variable: string, order: 1 | 2 | 3): CalculusResult {
+// Fase 3 (paridad con la pantalla única): el orden de derivada ya no
+// tiene tope artificial — Algebrite acepta d(cuerpo,x,N) con N nativo,
+// verificado contra el paquete real (ver algebriteClient.ts). El tope de
+// 1-3 que tenía este archivo ("reducido de v9 por prudencia ante
+// Algebrite") ya no aplica: la pantalla única (vía normalize.ts) acepta
+// cualquier N escrito a mano en \frac{d^N}{dx^N}, así que CalculusMode.tsx
+// (el formulario dedicado) no debería quedar más limitado que eso.
+export function calcDerivative(exprAlgebrite: string, variable: string, order: number): CalculusResult {
   const result = symbolicDerivative(exprAlgebrite, variable, order);
   return {
     resultLatex: result,
@@ -43,31 +50,47 @@ export function calcDerivative(exprAlgebrite: string, variable: string, order: 1
   };
 }
 
+export type LimitDirection = "both" | "left" | "right";
+
+// Fase 3 (paridad con la pantalla única): antes esta función solo probaba
+// un punto finito. tryLimitFallback (compute.worker.ts) ya resuelve
+// infinito/lateral para la notación natural en Básica — se porta acá el
+// mismo criterio para que el formulario dedicado de Cálculo llegue a lo
+// mismo, sin que el usuario tenga que "saber" que escribiendo la notación
+// a mano en Básica consigue más que en el formulario pensado para eso.
 export function calcLimit(
   exprAlgebrite: string,
   variable: string,
   pointAlgebrite: string,
   pointNumeric: number,
+  direction: LimitDirection = "both",
 ): CalculusResult {
+  const isInfinite = pointAlgebrite === "oo" || pointAlgebrite === "-oo";
+  const limitLatex = `\\lim_{${variable}\\to ${pointAlgebrite}${direction === "right" ? "^+" : direction === "left" ? "^-" : ""}} ${exprAlgebrite}`;
+
   try {
+    // symbolicLimit ya detecta el caso "Algebrite devolvió la llamada sin
+    // evaluar" (incluido cuando el punto es oo/-oo, confirmado contra el
+    // paquete real) y lanza en ese caso — cae directo al catch de abajo.
     const result = symbolicLimit(exprAlgebrite, variable, pointAlgebrite);
     return {
       resultLatex: result,
       confidence: "SYMBOLIC",
       steps: [
-        { id: "original", latex: `\\lim_{${variable}\\to ${pointAlgebrite}} ${exprAlgebrite}`, explanation: "Límite planteado." },
+        { id: "original", latex: limitLatex, explanation: "Límite planteado." },
         { id: "result", latex: result, explanation: "Resuelto simbólicamente por Algebrite." },
       ],
     };
   } catch {
-    // Fallback numérico — spec v10 §10, mismo criterio que graficación.
     let f;
     try {
       f = compileNumeric(exprAlgebrite, variable);
     } catch (err) {
       throw err as AppError;
     }
-    const { value, converged } = numericLimit(f, pointNumeric);
+    const { value, converged } = isInfinite
+      ? numericLimitAtInfinity(f, pointAlgebrite === "oo" ? 1 : -1)
+      : numericLimit(f, pointNumeric, direction);
     if (!Number.isFinite(value)) {
       throw { code: ErrorCode.UNSUPPORTED_OPERATION, message: "No se pudo estimar el límite numéricamente (valores no finitos)." } as AppError;
     }
@@ -75,12 +98,16 @@ export function calcLimit(
       resultLatex: value.toFixed(6),
       confidence: "NUMERIC_FALLBACK",
       steps: [
-        { id: "original", latex: `\\lim_{${variable}\\to ${pointAlgebrite}} ${exprAlgebrite}`, explanation: "Límite planteado." },
+        { id: "original", latex: limitLatex, explanation: "Límite planteado." },
         {
           id: "numeric",
           latex: `\\approx ${value.toFixed(6)}`,
           explanation: converged
-            ? "Estimado numéricamente por acercamiento lateral (no resuelto simbólicamente)."
+            ? isInfinite
+              ? "Estimado numéricamente evaluando en magnitudes crecientes (no resuelto simbólicamente)."
+              : direction === "both"
+                ? "Estimado numéricamente por acercamiento lateral (no resuelto simbólicamente)."
+                : `Estimado numéricamente acercándose solo por la ${direction === "right" ? "derecha" : "izquierda"}.`
             : "Estimado numéricamente, pero los lados izquierdo/derecho no convergen al mismo valor — el límite podría no existir.",
         },
       ],
