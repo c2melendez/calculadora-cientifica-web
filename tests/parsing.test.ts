@@ -154,4 +154,44 @@ describe("parseExpression", () => {
       );
     });
   });
+
+  // Fase 2.5 (bug real reportado con capturas): "5/2" y "√7" escritos a
+  // mano en el campo (no con los botones de plantilla) daban PARSE_ERROR
+  // porque el parser asumía SIEMPRE llaves inmediatas tras \frac/\sqrt.
+  // LaTeX real (y MathLive) acepta un solo token sin llaves cuando el
+  // argumento es un único carácter — ver normalize.ts.
+  describe("Fase 2.5 — \\frac/\\sqrt sin llaves (un solo token)", () => {
+    it("\\frac52 (sin llaves) equivale a \\frac{5}{2}", () => {
+      expect(parseExpression("\\frac52").algebrite).toBe("((5)/(2))");
+    });
+
+    it("\\sqrt7 (sin llaves) equivale a \\sqrt{7}", () => {
+      expect(parseExpression("\\sqrt7").algebrite).toBe("sqrt(7)");
+    });
+
+    it("\\fracab con letras sueltas (variables de un solo carácter)", () => {
+      expect(parseExpression("\\fracab").algebrite).toBe("((a)/(b))");
+    });
+
+    it("con llaves normales sigue funcionando igual (compatibilidad hacia atrás)", () => {
+      expect(parseExpression("\\frac{5}{2}").algebrite).toBe("((5)/(2))");
+      expect(parseExpression("\\sqrt{7}").algebrite).toBe("sqrt(7)");
+    });
+
+    it("mixto: numerador sin llaves, denominador con llaves", () => {
+      expect(parseExpression("\\frac5{2+3}").algebrite).toBe("((5)/(2+3))");
+    });
+
+    // Bug preexistente encontrado al verificar el fix de arriba (no
+    // introducido por él): una sola pasada de reemplazo de \sqrt no era
+    // recursiva, pese a que el comentario decía que sí soportaba
+    // anidamiento.
+    it("\\sqrt{\\sqrt{x}} anidado (bug preexistente, no relacionado a las llaves)", () => {
+      expect(parseExpression("\\sqrt{\\sqrt{x}}").algebrite).toBe("sqrt(sqrt(x))");
+    });
+
+    it("\\sqrt[3]{x} (raíz enésima) no se ve afectado por ninguno de los dos fixes", () => {
+      expect(parseExpression("\\sqrt[3]{x}").algebrite).toBe("(x)^(1/(3))");
+    });
+  });
 });
