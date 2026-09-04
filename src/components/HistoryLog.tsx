@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { convertLatexToMarkup } from "mathlive";
 import { StepList } from "./StepList";
+import { StaticMath } from "./StaticMath";
 import type { MathResult } from "../types";
 
 // Fase A (spec UX §2, decisión confirmada): el historial de una línea
@@ -10,22 +10,18 @@ import type { MathResult } from "../types";
 // cálculos de sesiones anteriores; este es para ver el hilo de la sesión
 // actual sin perder el contexto de cada paso).
 //
-// Fase E (fix display): `entry.input` ya era LaTeX real (viene del
-// <math-field> de MathLive), pero se mostraba como texto plano
-// ("\sqrt{144}" en vez del símbolo de raíz) — se renderiza ahora con
-// convertLatexToMarkup, igual que ResultPanel. Los renglones viejos se
-// atenúan progresivamente (opacidad decreciente hacia arriba) para dar
-// la sensación de "cinta" de ClassCalc; ya no trae su propio
-// fondo/padding, vive anidado dentro de Screen.tsx.
+// Fase 2.6 (fix real del bug de display, ver StaticMath.tsx): antes
+// usaba convertLatexToMarkup + dangerouslySetInnerHTML (igual que
+// ResultPanel), que seguía rompiéndose en casos reales. Ahora usa
+// <StaticMath>. Los renglones viejos se atenúan progresivamente
+// (opacidad decreciente hacia arriba) para dar la sensación de "cinta"
+// de ClassCalc; ya no trae su propio fondo/padding, vive anidado dentro
+// de Screen.tsx.
 
 export interface SessionHistoryEntry {
   id: string;
   input: string;
   result: MathResult;
-}
-
-function renderLatex(latex: string): { __html: string } {
-  return { __html: convertLatexToMarkup(latex) };
 }
 
 export function HistoryLog({ entries }: { entries: SessionHistoryEntry[] }) {
@@ -55,16 +51,15 @@ export function HistoryLog({ entries }: { entries: SessionHistoryEntry[] }) {
                 hasSteps ? "hover:bg-paper-line/40" : "cursor-default"
               }`}
             >
-              <span
-                className="truncate font-mono text-sm text-muted [&_.ML__base]:text-muted"
-                dangerouslySetInnerHTML={renderLatex(entry.input)}
-              />
-              <span
-                className="shrink-0 font-mono text-sm font-semibold text-marker-text [&_.ML__base]:text-marker-text"
-                dangerouslySetInnerHTML={
-                  entry.result.success ? renderLatex(entry.result.resultLatex ?? "") : { __html: "—" }
-                }
-              />
+              <StaticMath latex={entry.input} className="truncate font-mono text-sm text-muted" />
+              {entry.result.success ? (
+                <StaticMath
+                  latex={entry.result.resultLatex ?? ""}
+                  className="shrink-0 font-mono text-sm font-semibold text-marker-text"
+                />
+              ) : (
+                <span className="shrink-0 font-mono text-sm font-semibold text-marker-text">—</span>
+              )}
             </button>
             {isExpanded && hasSteps && (
               <div className="mt-1 pl-1.5">
