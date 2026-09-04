@@ -149,7 +149,7 @@ export function GraphingMode() {
   const selectedAnalysis = selectedEntry?.analysis ?? null;
 
   return (
-    <div className="flex flex-col gap-3 p-4 md:flex-row md:items-start">
+    <div className="flex flex-col gap-3 p-4 md:flex-row md:items-start lg:gap-6 dt:mx-auto dt:max-w-[1440px] dt:gap-10">
       {/* Sidebar de expresiones (spec §6) */}
       <div className="flex w-full flex-col gap-2 md:w-56">
         {entries.map((entry) => (

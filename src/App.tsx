@@ -7,6 +7,7 @@ import { LinearSystemsMode } from "./modes/LinearSystems/LinearSystemsMode";
 import { MatrixMode } from "./modes/Matrices/MatrixMode";
 import { GraphingMode } from "./modes/Graphing/GraphingMode";
 import { HistoryPanel } from "./components/HistoryPanel";
+import { HistoryDrawer } from "./components/HistoryDrawer";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 // Selector de modos por pestañas tipo "chasis" (Fase 1 — sistema de diseño
@@ -38,21 +39,36 @@ const MODE_LABELS: Record<Mode, string> = {
 // derivada/integral/límite, todo en una sola pantalla). Los modos en sí
 // NO se eliminan (siguen existiendo, siguen siendo válidos si algo
 // interno navega ahí), solo se les quita la pestaña visible.
-const VISIBLE_MODES: Mode[] = ["basic", "simple", "matrices", "graphing", "history"];
+//
+// P2 (spec v2 §3): "history" deja de ser pestaña — pasa a ser el
+// HistoryDrawer (botón dedicado en el header, ya no un tab). Se queda
+// en `type Mode`/MODE_LABELS por si algo interno todavía lo referencia,
+// pero ya no aparece en VISIBLE_MODES.
+const VISIBLE_MODES: Mode[] = ["basic", "simple", "matrices", "graphing"];
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("basic");
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-chrome pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       <header className="flex items-center justify-between gap-2 border-b border-chrome-soft p-4">
-        <span className="w-[92px]" aria-hidden="true" />
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((o) => !o)}
+          aria-label="Historial"
+          aria-expanded={historyOpen}
+          className="flex w-[92px] items-center gap-1.5 rounded-md px-2 py-1.5 text-bone/80 hover:bg-chrome-soft hover:text-bone dt:w-[140px]"
+        >
+          <span aria-hidden="true">▤</span>
+          <span className="text-xs">Historial</span>
+        </button>
         <span className="font-display text-lg font-medium tracking-tight text-bone">
           Precision Lab <span className="text-marker">Lite</span>
         </span>
         <ThemeToggle />
       </header>
-      <nav className="flex flex-wrap justify-center gap-1.5 border-b border-chrome-soft bg-chrome px-2 py-2 text-sm">
+      <nav className="flex flex-wrap justify-center gap-1.5 border-b border-chrome-soft bg-chrome px-2 py-2 text-sm lg:gap-2 lg:py-2.5 dt:gap-3">
         {(VISIBLE_MODES).map((m) => (
           <button
             key={m}
@@ -68,16 +84,20 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <main className="bg-paper text-ink">
-        {mode === "basic" && <BasicScientificMode />}
-        {mode === "simple" && <SimpleBasicMode />}
-        {mode === "algebra" && <AlgebraMode />}
-        {mode === "calculus" && <CalculusMode />}
-        {mode === "systems" && <LinearSystemsMode />}
-        {mode === "matrices" && <MatrixMode />}
-        {mode === "graphing" && <GraphingMode />}
-        {mode === "history" && <HistoryPanel />}
-      </main>
+      <div className="flex">
+        <main className="min-w-0 flex-1 bg-paper text-ink">
+          {mode === "basic" && <BasicScientificMode />}
+          {mode === "simple" && <SimpleBasicMode />}
+          {mode === "algebra" && <AlgebraMode />}
+          {mode === "calculus" && <CalculusMode />}
+          {mode === "systems" && <LinearSystemsMode />}
+          {mode === "matrices" && <MatrixMode />}
+          {mode === "graphing" && <GraphingMode />}
+        </main>
+        <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)}>
+          <HistoryPanel />
+        </HistoryDrawer>
+      </div>
     </div>
   );
 }

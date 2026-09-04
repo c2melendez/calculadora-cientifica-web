@@ -90,16 +90,20 @@ export function SimpleBasicMode() {
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col gap-3 p-4">
-      <NaturalInput value={latex} onChange={setLatex} placeholder="0" fieldRef={setMathField} />
-      <ResultPanel result={result} />
-      <SimpleKeyboard
-        field={mathField}
-        onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
-        onEnter={handleCalculate}
-        onHistoryBack={historyBack}
-        onHistoryForward={historyForward}
-      />
+    <div className="mx-auto flex max-w-sm flex-col gap-3 p-4 lg:max-w-3xl lg:grid lg:grid-cols-[1.4fr_1fr] lg:items-start lg:gap-6 dt:gap-10">
+      <div className="flex flex-col gap-3 lg:col-start-1">
+        <NaturalInput value={latex} onChange={setLatex} placeholder="0" fieldRef={setMathField} />
+        <SimpleKeyboard
+          field={mathField}
+          onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
+          onEnter={handleCalculate}
+          onHistoryBack={historyBack}
+          onHistoryForward={historyForward}
+        />
+      </div>
+      <div className="lg:col-start-2">
+        <ResultPanel result={result} />
+      </div>
     </div>
   );
 }

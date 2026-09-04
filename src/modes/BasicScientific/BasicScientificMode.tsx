@@ -193,27 +193,31 @@ export function BasicScientificMode() {
   const handleSimplify = useCallback(() => handleCalculate(), [handleCalculate]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
-      <Screen
-        latex={latex}
-        onChangeLatex={setLatex}
-        placeholder="Escribe una expresión, ecuación o sistema…"
-        fieldRef={setMathField}
-        result={result}
-        sessionHistory={sessionHistory}
-        angleMode={angleMode}
-        onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
-        onClearField={() => setLatex("")}
-      />
-      <MathKeyboard
-        field={mathField}
-        onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
-        onEnter={handleCalculate}
-        onClearField={() => setLatex("")}
-        onSolveEquation={handleSolveEquation}
-        onSolveSystem={handleSolveSystem}
-        onSimplify={handleSimplify}
-      />
+    <div className="mx-auto flex max-w-md flex-col gap-3 p-4 md:max-w-lg lg:max-w-3xl lg:grid lg:grid-cols-[1.4fr_1fr] lg:items-start lg:gap-6 dt:max-w-4xl dt:gap-10">
+      <div className="lg:col-start-1">
+        <Screen
+          latex={latex}
+          onChangeLatex={setLatex}
+          placeholder="Escribe una expresión, ecuación o sistema…"
+          fieldRef={setMathField}
+          result={result}
+          sessionHistory={sessionHistory}
+          angleMode={angleMode}
+          onToggleAngleMode={() => setAngleMode((m) => (m === "RAD" ? "GRAD" : "RAD"))}
+          onClearField={() => setLatex("")}
+        />
+      </div>
+      <div className="lg:col-start-2">
+        <MathKeyboard
+          field={mathField}
+          onBackspace={() => setLatex((prev) => prev.slice(0, -1))}
+          onEnter={handleCalculate}
+          onClearField={() => setLatex("")}
+          onSolveEquation={handleSolveEquation}
+          onSolveSystem={handleSolveSystem}
+          onSimplify={handleSimplify}
+        />
+      </div>
     </div>
   );
 }

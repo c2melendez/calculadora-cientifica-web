@@ -129,59 +129,63 @@ export function MatrixMode() {
   }, [op, matrixA, matrixB, exponent, getWorker]);
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-3 p-4">
-      <div className="flex flex-wrap justify-center gap-2 text-sm">
-        {(Object.keys(OP_LABELS) as Op[]).map((o) => (
-          <button
-            key={o}
-            onClick={() => setOp(o)}
-            className={`rounded-full px-3 py-1 ${o === op ? "bg-marker text-chrome" : "bg-paper-soft text-muted"}`}
-          >
-            {OP_LABELS[o]}
-          </button>
-        ))}
+    <div className="mx-auto flex max-w-md flex-col gap-3 p-4 lg:max-w-4xl lg:grid lg:grid-cols-[1.4fr_1fr] lg:items-start lg:gap-6 dt:gap-10">
+      <div className="flex flex-col gap-3 lg:col-start-1">
+        <div className="flex flex-wrap justify-center gap-2 text-sm">
+          {(Object.keys(OP_LABELS) as Op[]).map((o) => (
+            <button
+              key={o}
+              onClick={() => setOp(o)}
+              className={`rounded-full px-3 py-1 ${o === op ? "bg-marker text-chrome" : "bg-paper-soft text-muted"}`}
+            >
+              {OP_LABELS[o]}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-center gap-4">
+          <Stepper label="Filas A" value={rowsA} onChange={(n) => resizeA(n, colsA)} />
+          <Stepper label="Col A" value={colsA} onChange={(n) => resizeA(rowsA, n)} />
+        </div>
+        <MatrixGridInput rows={rowsA} cols={colsA} values={matrixA} onChange={setMatrixA} label="Matriz A" />
+
+        {NEEDS_B.includes(op) && (
+          <>
+            <div className="flex items-center justify-center gap-4">
+              <Stepper label="Filas B" value={rowsB} onChange={(n) => resizeB(n, colsB)} />
+              <Stepper label="Col B" value={colsB} onChange={(n) => resizeB(rowsB, n)} />
+            </div>
+            <MatrixGridInput rows={rowsB} cols={colsB} values={matrixB} onChange={setMatrixB} label="Matriz B" />
+          </>
+        )}
+
+        {op === "power" && (
+          <label className="flex items-center justify-center gap-2 text-sm text-muted">
+            Exponente n:
+            <input
+              type="number"
+              min={0}
+              value={exponent}
+              onChange={(e) => setExponent(parseInt(e.target.value, 10) || 0)}
+              className="w-16 rounded bg-paper-soft px-2 py-1 text-center text-ink"
+            />
+          </label>
+        )}
+
+        <button
+          onClick={handleCompute}
+          className="rounded-lg bg-graph py-2 text-lg font-semibold text-paper hover:bg-graph/90"
+        >
+          Calcular
+        </button>
       </div>
 
-      <div className="flex items-center justify-center gap-4">
-        <Stepper label="Filas A" value={rowsA} onChange={(n) => resizeA(n, colsA)} />
-        <Stepper label="Col A" value={colsA} onChange={(n) => resizeA(rowsA, n)} />
+      <div className="flex flex-col gap-3 lg:col-start-2">
+        <div className="rounded-xl bg-paper-soft px-4 py-3 shadow-inner shadow-black/10">
+          <ResultPanel result={result} />
+        </div>
+        {result?.steps && result.steps.length > 0 && <StepList steps={result.steps} />}
       </div>
-      <MatrixGridInput rows={rowsA} cols={colsA} values={matrixA} onChange={setMatrixA} label="Matriz A" />
-
-      {NEEDS_B.includes(op) && (
-        <>
-          <div className="flex items-center justify-center gap-4">
-            <Stepper label="Filas B" value={rowsB} onChange={(n) => resizeB(n, colsB)} />
-            <Stepper label="Col B" value={colsB} onChange={(n) => resizeB(rowsB, n)} />
-          </div>
-          <MatrixGridInput rows={rowsB} cols={colsB} values={matrixB} onChange={setMatrixB} label="Matriz B" />
-        </>
-      )}
-
-      {op === "power" && (
-        <label className="flex items-center justify-center gap-2 text-sm text-muted">
-          Exponente n:
-          <input
-            type="number"
-            min={0}
-            value={exponent}
-            onChange={(e) => setExponent(parseInt(e.target.value, 10) || 0)}
-            className="w-16 rounded bg-paper-soft px-2 py-1 text-center text-ink"
-          />
-        </label>
-      )}
-
-      <button
-        onClick={handleCompute}
-        className="rounded-lg bg-graph py-2 text-lg font-semibold text-paper hover:bg-graph/90"
-      >
-        Calcular
-      </button>
-
-      <div className="rounded-xl bg-paper-soft px-4 py-3 shadow-inner shadow-black/10">
-        <ResultPanel result={result} />
-      </div>
-      {result?.steps && result.steps.length > 0 && <StepList steps={result.steps} />}
     </div>
   );
 }

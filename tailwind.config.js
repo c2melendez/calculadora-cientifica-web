@@ -1,3 +1,5 @@
+import defaultTheme from "tailwindcss/defaultTheme";
+
 /** @type {import('tailwindcss').Config} */
 // Precision Lab Lite — tokens de diseño compartidos con Precision Lab (Python).
 // Los colores leen variables CSS (definidas en design-tokens.css) en vez de
@@ -16,6 +18,13 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // spec v2 §2: breakpoint dt agregado porque 1440px no coincide con
+      // ningún breakpoint por defecto de Tailwind. Spread explícito de
+      // defaultTheme.screens para no perder sm/md/lg/xl existentes.
+      screens: {
+        ...defaultTheme.screens,
+        dt: "1440px",
+      },
       colors: {
         chrome: {
           DEFAULT: withOpacity("--color-chrome"),
