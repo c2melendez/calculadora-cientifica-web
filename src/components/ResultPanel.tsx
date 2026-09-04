@@ -1,29 +1,23 @@
 import { useState } from "react";
-import { convertLatexToMarkup } from "mathlive";
+import { StaticMath } from "./StaticMath";
 import type { MathResult } from "../types";
 
 // spec v10 §11: el usuario alterna entre formatos sin recalcular.
 //
-// Fase E (fix display, detectado por comparación visual con ClassCalc):
-// dos cambios de fondo sobre la versión anterior.
-// 1) Se renderiza con convertLatexToMarkup (MathLive) en vez de texto
-//    plano — ahora que compute.worker.ts realmente entrega LaTeX válido
-//    en resultLatex (antes era la sintaxis nativa de Algebrite sin
-//    convertir, ver algebriteClient.ts).
-// 2) "dec" ahora usa decimalApprox como segundo fallback cuando no hay
-//    `fraction` (resultado simbólico, ej. sin(pi/4)) — antes caía
-//    directo a resultLatex y mostraba el mismo string simbólico en las
-//    4 pestañas.
+// Fase 2.6 (fix real del bug de display de fracciones, ver StaticMath.tsx
+// para la explicación completa): antes usaba convertLatexToMarkup +
+// dangerouslySetInnerHTML, que seguía rompiéndose en casos reales pese a
+// tener el CSS de MathLive importado (Fase 2.5). Ahora usa <StaticMath>,
+// que renderiza en Shadow DOM — inmune al CSS de la página.
+// "dec" usa decimalApprox como segundo fallback cuando no hay `fraction`
+// (resultado simbólico, ej. sin(pi/4)) — antes caía directo a resultLatex
+// y mostraba el mismo string simbólico en las 4 pestañas.
 //
 // Ya no trae su propio fondo/padding/sombra: vive anidado dentro de
 // Screen.tsx, que es quien da el contenedor "pantalla" único (spec UX
 // estilo ClassCalc, decisión del mockup).
 
 type AnswerFormat = "dec" | "frac" | "scn" | "sqrt";
-
-function renderLatex(latex: string): { __html: string } {
-  return { __html: convertLatexToMarkup(latex) };
-}
 
 export function ResultPanel({ result }: { result: MathResult | null }) {
   const [format, setFormat] = useState<AnswerFormat>("dec");
@@ -92,10 +86,7 @@ export function ResultPanel({ result }: { result: MathResult | null }) {
         {isPlainNumber ? (
           <span className="ml-auto font-mono text-3xl font-medium text-ink">{latex}</span>
         ) : (
-          <span
-            className="ml-auto font-mono text-3xl text-ink [&_.ML__base]:text-ink"
-            dangerouslySetInnerHTML={renderLatex(latex)}
-          />
+          <StaticMath latex={latex} className="ml-auto font-mono text-3xl text-ink" />
         )}
       </div>
       {format === "frac" && result.fraction?.mixedLatex !== null && result.fraction && (
