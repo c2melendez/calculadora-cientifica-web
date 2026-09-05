@@ -407,3 +407,96 @@ export function kroneckerProduct(a: Matrix, b: Matrix): { result: Matrix; steps:
   }
   return { result, steps: [{ id: "kron", latex: matrixToLatex(result), explanation: "Producto de Kronecker A⊗B." }] };
 }
+
+// ---------------------------------------------------------------------------
+// P5 (spec v2 §6): Vectores en Matrices — dot/cross/norm. Un vector es una
+// matriz 1xn o nx1 — no se crea componente de entrada nuevo (spec
+// explícita), se reutiliza MatrixGridInput configurado con 1 fila o 1
+// columna.
+//
+// `norm` rompe deliberadamente la regla "aritmética EXACTA con
+// fraction.js (nunca floats)" del encabezado de este archivo: una raíz
+// cuadrada normalmente NO es racional (ej. norm([1,1]) = sqrt(2)). La
+// suma de cuadrados se calcula exacta en Fraction; solo el paso final
+// (la raíz) se aproxima a decimal, y únicamente cuando no es un cuadrado
+// perfecto. Documentado aquí explícitamente para que quede claro que es
+// una excepción deliberada, no un descuido.
+// ---------------------------------------------------------------------------
+
+function toVector(m: Matrix): Fraction[] {
+  const { rows, cols } = dims(m);
+  if (rows === 1) return m[0];
+  if (cols === 1) return m.map((row) => row[0]);
+  throw {
+    code: ErrorCode.DIMENSION_MISMATCH,
+    message: `Se esperaba un vector (1 fila o 1 columna), se recibió una matriz de ${rows}x${cols}.`,
+  } as AppError;
+}
+
+export function dotProduct(a: Matrix, b: Matrix): { value: Fraction; steps: Step[] } {
+  const va = toVector(a);
+  const vb = toVector(b);
+  if (va.length !== vb.length) {
+    throw dimensionError(`vector de la misma longitud que A (${va.length})`, `vector de longitud ${vb.length}`);
+  }
+  let sum = new Fraction(0);
+  for (let i = 0; i < va.length; i++) sum = sum.add(va[i].mul(vb[i]));
+  return {
+    value: sum,
+    steps: [{ id: "dot", latex: `A \\cdot B = ${sum.toFraction(true)}`, explanation: "Suma de los productos componente a componente." }],
+  };
+}
+
+/** Válido únicamente para vectores de 3 componentes (spec v2 §6) —
+ * dimensión inválida reutiliza el mismo AppError/ErrorCode.DIMENSION_MISMATCH
+ * que el resto de las operaciones de matrices, no un código nuevo. */
+export function crossProduct(a: Matrix, b: Matrix): { result: Matrix; steps: Step[] } {
+  const va = toVector(a);
+  const vb = toVector(b);
+  if (va.length !== 3 || vb.length !== 3) {
+    throw dimensionError("vectores de 3 componentes", `A de ${va.length} y B de ${vb.length}`);
+  }
+  const [a1, a2, a3] = va;
+  const [b1, b2, b3] = vb;
+  const result: Matrix = [[a2.mul(b3).sub(a3.mul(b2)), a3.mul(b1).sub(a1.mul(b3)), a1.mul(b2).sub(a2.mul(b1))]];
+  return {
+    result,
+    steps: [{ id: "cross", latex: matrixToLatex(result), explanation: "Producto cruz A×B (solo definido en 3 dimensiones)." }],
+  };
+}
+
+/** Magnitud/norma euclidiana. No requiere matriz B (como transpose/
+ * determinant/inverse) — ver comentario de sección arriba sobre por qué
+ * no es aritmética 100% exacta. */
+export function vectorNorm(a: Matrix): { resultLatex: string; steps: Step[] } {
+  const v = toVector(a);
+  let sumSquares = new Fraction(0);
+  for (const x of v) sumSquares = sumSquares.add(x.mul(x));
+
+  const decimalSumSquares = sumSquares.valueOf();
+  const sqrtValue = Math.sqrt(decimalSumSquares);
+  const roundedSqrt = Math.round(sqrtValue);
+  const isPerfectSquare = Number.isInteger(decimalSumSquares) && roundedSqrt * roundedSqrt === decimalSumSquares;
+
+  const resultLatex = isPerfectSquare
+    ? String(roundedSqrt)
+    : `\\sqrt{${sumSquares.toFraction(true)}} \\approx ${Number(sqrtValue.toPrecision(12))}`;
+
+  return {
+    resultLatex,
+    steps: [
+      {
+        id: "sumsq",
+        latex: `\\|v\\|^2 = ${sumSquares.toFraction(true)}`,
+        explanation: "Suma de los cuadrados de cada componente (exacta).",
+      },
+      {
+        id: "norm",
+        latex: `\\|v\\| = ${resultLatex}`,
+        explanation: isPerfectSquare
+          ? "Raíz cuadrada exacta (cuadrado perfecto)."
+          : "Raíz cuadrada aproximada a 12 cifras (no es un cuadrado perfecto — ver nota de la sección sobre aritmética no exacta).",
+      },
+    ],
+  };
+}

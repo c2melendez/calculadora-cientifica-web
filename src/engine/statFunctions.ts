@@ -30,6 +30,12 @@ export const STAT_FUNCTION_NAMES = [
   "min",
   "max",
   "range",
+  // P6 (spec v2 §7.1): variance/stdev de arriba son muestrales (n-1) —
+  // faltaba la variante poblacional. Se agregan como funciones NUEVAS,
+  // sin tocar variance/stdev/var (que ya usa el campo de expresión
+  // libre) ni su firma.
+  "variancePop",
+  "stdevPop",
 ] as const;
 export type StatFunctionName = (typeof STAT_FUNCTION_NAMES)[number];
 
@@ -64,17 +70,23 @@ function evalNumericArg(arg: string): number {
   return n;
 }
 
-function mean(values: number[]): number {
+// P6 (spec v2 §7.1): estos helpers se exportan (antes eran privados del
+// módulo) para que StatisticsMode.tsx los reutilice directamente sobre
+// arreglos numéricos ya parseados desde DataListInput — sin pasar por
+// tryStatFunction()/evaluate(), que espera una expresión de texto tipo
+// "mean(1,2,3)", no un arreglo. Mismo motivo que pide la spec:
+// "reutilizar statFunctions.ts existente, no reimplementar".
+export function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-function modes(values: number[]): number[] {
+export function modes(values: number[]): number[] {
   const counts = new Map<number, number>();
   for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
   const maxCount = Math.max(...counts.values());
@@ -84,11 +96,15 @@ function modes(values: number[]): number[] {
     .sort((a, b) => a - b);
 }
 
+export function range(values: number[]): number {
+  return Math.max(...values) - Math.min(...values);
+}
+
 // Decisión DEDUCIBLE (no especificada antes): stdev/variance de MUESTRA
 // (dividen entre n-1), la convención más común en calculadoras científicas
 // (Casio fx, TI) para un conjunto de datos que no se asume la población
 // completa. Documentado aquí para no dejarlo implícito.
-function variance(values: number[]): number {
+export function variance(values: number[]): number {
   if (values.length < 2) {
     throw new Error("stdev/variance necesitan al menos 2 valores.");
   }
@@ -97,11 +113,26 @@ function variance(values: number[]): number {
   return sumSq / (values.length - 1);
 }
 
-function stdev(values: number[]): number {
+export function stdev(values: number[]): number {
   return Math.sqrt(variance(values));
 }
 
-function mad(values: number[]): number {
+/** P6 (spec v2 §7.1): variante poblacional (divide entre n, no n-1) —
+ * función nueva, variance()/stdev() de arriba no cambian. */
+export function variancePopulation(values: number[]): number {
+  if (values.length < 1) {
+    throw new Error("stdevPop/variancePop necesitan al menos 1 valor.");
+  }
+  const m = mean(values);
+  const sumSq = values.reduce((acc, v) => acc + (v - m) ** 2, 0);
+  return sumSq / values.length;
+}
+
+export function stdevPopulation(values: number[]): number {
+  return Math.sqrt(variancePopulation(values));
+}
+
+export function mad(values: number[]): number {
   const m = mean(values);
   return mean(values.map((v) => Math.abs(v - m)));
 }
@@ -156,6 +187,10 @@ export function tryStatFunction(expr: string): string | null {
     case "variance":
     case "var":
       return formatNumber(variance(values));
+    case "stdevPop":
+      return formatNumber(stdevPopulation(values));
+    case "variancePop":
+      return formatNumber(variancePopulation(values));
     case "mad":
       return formatNumber(mad(values));
     default:

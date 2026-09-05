@@ -6,6 +6,8 @@ import { CalculusMode } from "./modes/Calculus/CalculusMode";
 import { LinearSystemsMode } from "./modes/LinearSystems/LinearSystemsMode";
 import { MatrixMode } from "./modes/Matrices/MatrixMode";
 import { GraphingMode } from "./modes/Graphing/GraphingMode";
+import { StatisticsMode } from "./modes/Statistics/StatisticsMode";
+import { UnitsMode } from "./modes/Units/UnitsMode";
 import { HistoryPanel } from "./components/HistoryPanel";
 import { HistoryDrawer } from "./components/HistoryDrawer";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -20,7 +22,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 // todavía (decisión explícita: se pospone hasta que el ícono "sistema"
 // del teclado de Científica tenga lógica real de resolución).
 
-type Mode = "basic" | "simple" | "algebra" | "calculus" | "systems" | "matrices" | "graphing" | "history";
+type Mode = "basic" | "simple" | "algebra" | "calculus" | "systems" | "matrices" | "graphing" | "statistics" | "units" | "history";
 
 const MODE_LABELS: Record<Mode, string> = {
   basic: "Científica",
@@ -29,7 +31,9 @@ const MODE_LABELS: Record<Mode, string> = {
   calculus: "Cálculo",
   systems: "Sistemas",
   matrices: "Matrices",
-  graphing: "Graficación",
+  graphing: "Gráficas",
+  statistics: "Estadística",
+  units: "Unidades",
   history: "Historial",
 };
 
@@ -44,7 +48,11 @@ const MODE_LABELS: Record<Mode, string> = {
 // HistoryDrawer (botón dedicado en el header, ya no un tab). Se queda
 // en `type Mode`/MODE_LABELS por si algo interno todavía lo referencia,
 // pero ya no aparece en VISIBLE_MODES.
-const VISIBLE_MODES: Mode[] = ["basic", "simple", "matrices", "graphing"];
+// P6 (spec v2 §7): "statistics" nueva, visible.
+// P7 (spec v2 §8): "units" nueva, visible — con esto queda el orden
+// final de §9: Científica · Basic · Matrices · Gráficas · Estadística ·
+// Unidades.
+const VISIBLE_MODES: Mode[] = ["basic", "simple", "matrices", "graphing", "statistics", "units"];
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("basic");
@@ -93,6 +101,8 @@ export default function App() {
           {mode === "systems" && <LinearSystemsMode />}
           {mode === "matrices" && <MatrixMode />}
           {mode === "graphing" && <GraphingMode />}
+          {mode === "statistics" && <StatisticsMode />}
+          {mode === "units" && <UnitsMode />}
         </main>
         <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)}>
           <HistoryPanel />

@@ -22,7 +22,7 @@ import { addHistoryEntry } from "../../store/historyDb";
 // implementó aquí por el alcance que tomaría (un store de matrices
 // nombradas + referencias en las operaciones).
 
-type Op = "add" | "subtract" | "multiply" | "kron" | "transpose" | "determinant" | "inverse" | "power" | "ref" | "rref";
+type Op = "add" | "subtract" | "multiply" | "kron" | "transpose" | "determinant" | "inverse" | "power" | "ref" | "rref" | "dot" | "cross" | "norm";
 
 const OP_LABELS: Record<Op, string> = {
   add: "A + B",
@@ -35,9 +35,13 @@ const OP_LABELS: Record<Op, string> = {
   power: "Aⁿ",
   ref: "ref(A)",
   rref: "rref(A)",
+  // P5 (spec v2 §6): A y B son vectores (matriz 1xn o nx1) en estas 3.
+  dot: "A · B",
+  cross: "A ⨯ B",
+  norm: "‖A‖",
 };
 
-const NEEDS_B: Op[] = ["add", "subtract", "multiply", "kron"];
+const NEEDS_B: Op[] = ["add", "subtract", "multiply", "kron", "dot", "cross"];
 const MIN_SIZE = 1;
 const MAX_SIZE = 4;
 

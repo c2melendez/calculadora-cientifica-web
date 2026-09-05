@@ -9,6 +9,7 @@ import { evaluate, toLatex, toDecimalApprox, ErrorCode as ClientErrorCode } from
 import { toFractionResult, fractionToLatex } from "../engine/fractions";
 import { compileNumeric, numericLimit, numericLimitAtInfinity } from "../engine/numericFallback";
 import { tryStatFunction, splitTopLevelArgs } from "../engine/statFunctions";
+import { tryComplexFunction } from "../engine/complexFunctions";
 import { solveAlgebra } from "../engine/stepEngine/algebra";
 import {
   calcDerivative,
@@ -29,6 +30,9 @@ import {
   ref,
   rref,
   kroneckerProduct,
+  dotProduct,
+  crossProduct,
+  vectorNorm,
 } from "../engine/matrixOps";
 import { analyzeGraph } from "../engine/stepEngine/graphing";
 import { ErrorCode, makeRequestId, type MathResult, type AppError } from "../types";
@@ -71,7 +75,7 @@ export type ComputeRequest =
   | {
       type: "matrixOp";
       requestId: string;
-      op: "add" | "subtract" | "multiply" | "transpose" | "determinant" | "inverse" | "power" | "ref" | "rref" | "kron";
+      op: "add" | "subtract" | "multiply" | "transpose" | "determinant" | "inverse" | "power" | "ref" | "rref" | "kron" | "dot" | "cross" | "norm";
       a: (string | number)[][];
       b?: (string | number)[][];
       exponent?: number;
@@ -288,6 +292,23 @@ function handleEvaluate(expr: string, requestId: string): MathResult {
       };
     }
 
+    // P4 (spec v2 §5.1): re/im/arg/conj/topolar — mismo motivo y mismo
+    // patrón que las funciones de estadística arriba (no nativas de
+    // Algebrite, ver cabecera de complexFunctions.ts sobre por qué se
+    // asume eso sin poder confirmarlo en este entorno).
+    const complexResult = tryComplexFunction(expr);
+    if (complexResult !== null) {
+      return {
+        success: true,
+        resultLatex: toLatex(complexResult),
+        fraction: toFractionResult(complexResult),
+        steps: [],
+        hasDetailedSteps: false,
+        confidence: "NUMERIC_FALLBACK",
+        requestId,
+      };
+    }
+
     let raw = evaluate(expr);
     let confidence: MathResult["confidence"] = "SYMBOLIC";
     if (/^limit\(/.test(raw)) {
@@ -468,6 +489,25 @@ function handleMatrixOp(
       case "kron": {
         const { result, steps: s } = kroneckerProduct(a, b!);
         resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
+        steps = s;
+        break;
+      }
+      case "dot": {
+        const { value, steps: s } = dotProduct(a, b!);
+        resultLatex = value.toFraction(true);
+        fraction = toFractionResult(value.toFraction());
+        steps = s;
+        break;
+      }
+      case "cross": {
+        const { result, steps: s } = crossProduct(a, b!);
+        resultLatex = result.map((row) => row.map((v) => v.toFraction(true)).join(", ")).join(" | ");
+        steps = s;
+        break;
+      }
+      case "norm": {
+        const { resultLatex: r, steps: s } = vectorNorm(a);
+        resultLatex = r;
         steps = s;
         break;
       }

@@ -243,9 +243,14 @@ export function preprocessLatex(latex: string): string {
       const limVar = varTo.slice(0, toIndex);
       let point = varTo.slice(toIndex + "\\to".length);
       let direction = "";
-      const dirMatch = point.match(/\^([+-])$/);
+      // P3 (spec v2 §4.3): la tecla combinada lim_{x→a±} inserta el signo
+      // como placeholder editable dentro de llaves (^{#2}) para que
+      // MathLive lo trate como un átomo editable — al completarlo, el
+      // LaTeX resultante es "^{+}"/"^{-}" (con llaves), no "^+"/"^-" como
+      // antes. Se acepta ambas formas para no romper el caso viejo.
+      const dirMatch = point.match(/\^\{?([+-])\}?$/);
       if (dirMatch) {
-        point = point.slice(0, -2);
+        point = point.slice(0, dirMatch.index);
         direction = dirMatch[1] === "+" ? ",1" : ",-1";
       }
       expr = `limit((${body}),${limVar},${point}${direction})`;
